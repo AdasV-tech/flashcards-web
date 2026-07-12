@@ -6,12 +6,11 @@
 <title>Flashcards</title>
 <script data-cfasync="false" src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script data-cfasync="false" src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script data-cfasync="false" src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body>
 <div id="root">
   <div id="boot-status" style="font-family: -apple-system, sans-serif; color:#111; background:#fff; padding:20px; font-size:14px; line-height:1.5;">
-    Loading scripts…
+    Loading…
   </div>
 </div>
 <script data-cfasync="false">
@@ -23,16 +22,12 @@
     }
   });
 </script>
-<script type="text/babel" data-presets="react" data-cfasync="false">
-document.getElementById('boot-status').innerText = 'Babel script running…';
-const { useState, useEffect } = React;
-
+<script data-cfasync="false">
 let idSeed = 0;
 function makeId(prefix) {
   idSeed += 1;
   return `${prefix}_${Date.now().toString(36)}_${idSeed}`;
 }
-
 const styles = `
   @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
@@ -528,7 +523,6 @@ const styles = `
     color: #fff;
   }
 `;
-
 function FlashcardsApp() {
   const [decks, setDecks] = useState([]);
   const [loaded, setLoaded] = useState(false);
@@ -558,7 +552,9 @@ function FlashcardsApp() {
         if (!cancelled) setLoaded(true);
       }
     })();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   // Persist decks whenever they change
@@ -572,21 +568,18 @@ function FlashcardsApp() {
       }
     })();
   }, [decks, loaded]);
-
   const activeDeck = decks.find(d => d.id === activeDeckId) || null;
   const cards = activeDeck ? activeDeck.cards : [];
   const current = cards[index];
   const known = cards.filter(c => c.known === true).length;
   const unknown = cards.filter(c => c.known === false).length;
   const progress = cards.length > 0 ? index / cards.length : 0;
-
   function goHome() {
     setView("home");
     setActiveDeckId(null);
     setFlipped(false);
     setConfirmDeleteId(null);
   }
-
   function openDeck(deck) {
     setActiveDeckId(deck.id);
     setIndex(0);
@@ -595,17 +588,19 @@ function FlashcardsApp() {
     setBack("");
     setView(deck.cards.length === 0 ? "add" : "study");
   }
-
   function createDeck() {
     const name = newDeckName.trim();
     if (!name) return;
-    const deck = { id: makeId("deck"), name, cards: [] };
+    const deck = {
+      id: makeId("deck"),
+      name,
+      cards: []
+    };
     setDecks(d => [...d, deck]);
     setNewDeckName("");
     setShowNewDeck(false);
     openDeck(deck);
   }
-
   function handleDeleteDeckTap(deck) {
     if (confirmDeleteId === deck.id) {
       setDecks(d => d.filter(x => x.id !== deck.id));
@@ -614,13 +609,13 @@ function FlashcardsApp() {
     } else {
       setConfirmDeleteId(deck.id);
       setTimeout(() => {
-        setConfirmDeleteId(curr => (curr === deck.id ? null : curr));
+        setConfirmDeleteId(curr => curr === deck.id ? null : curr);
       }, 3000);
     }
   }
-
-  function flip() { setFlipped(f => !f); }
-
+  function flip() {
+    setFlipped(f => !f);
+  }
   function advance() {
     setFlipped(false);
     const isLast = index + 1 >= cards.length;
@@ -632,250 +627,268 @@ function FlashcardsApp() {
       }
     }, 100);
   }
-
   function mark(val) {
     setDecks(d => d.map(dk => dk.id !== activeDeckId ? dk : {
       ...dk,
-      cards: dk.cards.map((c, i) => i === index ? { ...c, known: val } : c)
+      cards: dk.cards.map((c, i) => i === index ? {
+        ...c,
+        known: val
+      } : c)
     }));
     advance();
   }
-
-  function skip() { advance(); }
-
+  function skip() {
+    advance();
+  }
   function restart() {
     setDecks(d => d.map(dk => dk.id !== activeDeckId ? dk : {
       ...dk,
-      cards: dk.cards.map(c => ({ ...c, known: null }))
+      cards: dk.cards.map(c => ({
+        ...c,
+        known: null
+      }))
     }));
     setIndex(0);
     setFlipped(false);
     setView("study");
   }
-
   function addCard() {
-    const f = front.trim(), b = back.trim();
+    const f = front.trim(),
+      b = back.trim();
     if (!f || !b) return;
     setDecks(d => d.map(dk => dk.id !== activeDeckId ? dk : {
       ...dk,
-      cards: [...dk.cards, { id: makeId("card"), front: f, back: b, known: null }]
+      cards: [...dk.cards, {
+        id: makeId("card"),
+        front: f,
+        back: b,
+        known: null
+      }]
     }));
     setFront("");
     setBack("");
   }
-
   function deleteCard(cardId) {
     setDecks(d => d.map(dk => dk.id !== activeDeckId ? dk : {
       ...dk,
       cards: dk.cards.filter(c => c.id !== cardId)
     }));
   }
-
   if (!loaded) {
-    return (
-      <>
-        <style>{styles}</style>
-        <div className="app">
-          <div className="loading-screen">Loading your decks…</div>
-        </div>
-      </>
-    );
+    return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("style", null, styles), /*#__PURE__*/React.createElement("div", {
+      className: "app"
+    }, /*#__PURE__*/React.createElement("div", {
+      className: "loading-screen"
+    }, "Loading your decks…")));
   }
-
-  return (
-    <>
-      <style>{styles}</style>
-      <div className="app">
-        {/* Header */}
-        <div className="header">
-          <div className="header-left">
-            {view !== "home" && (
-              <button className="btn-back" onClick={goHome} aria-label="Back to decks">‹</button>
-            )}
-            <span className="header-title">
-              {view === "home" ? "My Decks" : (activeDeck ? activeDeck.name : "")}
-            </span>
-          </div>
-          <span className="header-count">
-            {view === "home" && `${decks.length} deck${decks.length !== 1 ? "s" : ""}`}
-            {view === "study" && cards.length > 0 && `${index + 1} / ${cards.length}`}
-            {view === "add" && `${cards.length} card${cards.length !== 1 ? "s" : ""}`}
-          </span>
-        </div>
-
-        {/* Progress */}
-        {view === "study" && cards.length > 0 && (
-          <div className="progress-bar-track">
-            <div className="progress-bar-fill" style={{ width: `${progress * 100}%` }} />
-          </div>
-        )}
-
-        {/* Home view: deck list */}
-        {view === "home" && (
-          <div className="home-screen">
-            {decks.length === 0 && (
-              <div className="results">
-                <div className="results-emoji">🗂️</div>
-                <div className="results-title">Create your first deck</div>
-                <div className="results-sub">Decks keep topics separate — like "Spanish Verbs" or "Biology Ch. 3".</div>
-              </div>
-            )}
-
-            {decks.length > 0 && (
-              <div className="deck-list">
-                {decks.map(deck => (
-                  <div className="deck-row" key={deck.id} onClick={() => openDeck(deck)}>
-                    <div className="deck-row-main">
-                      <div className="deck-row-name">{deck.name}</div>
-                      <div className="deck-row-meta">{deck.cards.length} card{deck.cards.length !== 1 ? "s" : ""}</div>
-                    </div>
-                    <button
-                      className={`btn-delete${confirmDeleteId === deck.id ? " confirming" : ""}`}
-                      onClick={(e) => { e.stopPropagation(); handleDeleteDeckTap(deck); }}
-                      aria-label={confirmDeleteId === deck.id ? `Confirm delete ${deck.name}` : `Delete ${deck.name}`}
-                    >
-                      {confirmDeleteId === deck.id ? "✓" : "×"}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {showNewDeck ? (
-              <div className="new-deck-form">
-                <div className="field-label">Deck name</div>
-                <input
-                  className="text-input"
-                  type="text"
-                  autoFocus
-                  placeholder="e.g. Spanish Verbs"
-                  value={newDeckName}
-                  onChange={e => setNewDeckName(e.target.value)}
-                  onKeyDown={e => { if (e.key === "Enter") createDeck(); }}
-                />
-                <div className="new-deck-actions">
-                  <button className="btn btn-skip" style={{ height: 48 }} onClick={() => { setShowNewDeck(false); setNewDeckName(""); }}>Cancel</button>
-                  <button className="btn btn-next" style={{ height: 48 }} onClick={createDeck} disabled={!newDeckName.trim()}>Create</button>
-                </div>
-              </div>
-            ) : (
-              <button className="btn-new-deck" onClick={() => setShowNewDeck(true)}>+ New deck</button>
-            )}
-          </div>
-        )}
-
-        {/* Study view */}
-        {view === "study" && activeDeck && cards.length > 0 && current && (
-          <>
-            <div className="card-scene" onClick={flip} role="button" aria-label="Flip card">
-              <div className={`card-3d${flipped ? " flipped" : ""}`}>
-                <div className="card-face card-front">
-                  <span className="card-label">Question</span>
-                  <span className="card-text">{current.front}</span>
-                  <span className="card-tap-hint">Tap to reveal</span>
-                </div>
-                <div className="card-face card-back">
-                  <span className="card-label">Answer</span>
-                  <span className="card-text">{current.back}</span>
-                </div>
-              </div>
-            </div>
-
-            {flipped ? (
-              <div className="actions">
-                <button className="btn btn-unknown" onClick={() => mark(false)}>✕ Still learning</button>
-                <button className="btn btn-known" onClick={() => mark(true)}>✓ Got it</button>
-              </div>
-            ) : (
-              <div className="actions">
-                <button className="btn btn-skip" onClick={skip}>Skip →</button>
-                <button className="btn btn-next" onClick={flip}>Reveal answer</button>
-              </div>
-            )}
-
-            <div className="bottom-row">
-              <button className="btn-ghost" onClick={() => setView("add")}>Manage deck</button>
-              <button className="btn-ghost" onClick={restart}>Restart</button>
-            </div>
-          </>
-        )}
-
-        {/* Results view */}
-        {view === "results" && activeDeck && (
-          <div className="results">
-            <div className="results-emoji">{known >= cards.length * 0.8 ? "🎉" : known >= cards.length * 0.5 ? "👍" : "💪"}</div>
-            <div className="results-title">
-              {known >= cards.length * 0.8 ? "Great work!" : known >= cards.length * 0.5 ? "Good effort!" : "Keep practising!"}
-            </div>
-            <div className="results-sub">You got through all {cards.length} cards in {activeDeck.name}.</div>
-            <div className="results-stats">
-              <div className="stat-box stat-known">
-                <span className="stat-num">{known}</span>
-                <span className="stat-label">Known</span>
-              </div>
-              <div className="stat-box stat-unknown">
-                <span className="stat-num">{unknown}</span>
-                <span className="stat-label">Learning</span>
-              </div>
-            </div>
-            <button className="btn-restart" onClick={restart}>Study again</button>
-            <button className="btn-ghost" onClick={() => setView("add")}>Manage deck</button>
-          </div>
-        )}
-
-        {/* Add / manage cards view */}
-        {view === "add" && activeDeck && (
-          <div className="add-screen">
-            <div className="field-group">
-              <div className="field-label">Question (front)</div>
-              <textarea
-                rows={3}
-                placeholder="e.g. What is the capital of France?"
-                value={front}
-                onChange={e => setFront(e.target.value)}
-              />
-            </div>
-
-            <div className="field-group">
-              <div className="field-label">Answer (back)</div>
-              <textarea
-                rows={3}
-                placeholder="e.g. Paris"
-                value={back}
-                onChange={e => setBack(e.target.value)}
-              />
-            </div>
-
-            <button className="btn btn-next" style={{ height: 48 }} onClick={addCard} disabled={!front.trim() || !back.trim()}>
-              Add card
-            </button>
-
-            {cards.length > 0 && (
-              <button className="btn-restart" onClick={() => openDeck(activeDeck)}>Study this deck →</button>
-            )}
-
-            {cards.length > 0 && (
-              <>
-                <div className="field-label" style={{ marginTop: 8 }}>Cards in this deck</div>
-                <div className="deck-list">
-                  {cards.map(c => (
-                    <div className="deck-item" key={c.id}>
-                      <span className="deck-item-text">{c.front}</span>
-                      <button className="btn-delete" onClick={() => deleteCard(c.id)} aria-label="Delete card">×</button>
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
-          </div>
-        )}
-      </div>
-    </>
-  );
+  return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("style", null, styles), /*#__PURE__*/React.createElement("div", {
+    className: "app"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "header"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "header-left"
+  }, view !== "home" && /*#__PURE__*/React.createElement("button", {
+    className: "btn-back",
+    onClick: goHome,
+    "aria-label": "Back to decks"
+  }, "‹"), /*#__PURE__*/React.createElement("span", {
+    className: "header-title"
+  }, view === "home" ? "My Decks" : activeDeck ? activeDeck.name : "")), /*#__PURE__*/React.createElement("span", {
+    className: "header-count"
+  }, view === "home" && `${decks.length} deck${decks.length !== 1 ? "s" : ""}`, view === "study" && cards.length > 0 && `${index + 1} / ${cards.length}`, view === "add" && `${cards.length} card${cards.length !== 1 ? "s" : ""}`)), view === "study" && cards.length > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "progress-bar-track"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "progress-bar-fill",
+    style: {
+      width: `${progress * 100}%`
+    }
+  })), view === "home" && /*#__PURE__*/React.createElement("div", {
+    className: "home-screen"
+  }, decks.length === 0 && /*#__PURE__*/React.createElement("div", {
+    className: "results"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "results-emoji"
+  }, "🗂️"), /*#__PURE__*/React.createElement("div", {
+    className: "results-title"
+  }, "Create your first deck"), /*#__PURE__*/React.createElement("div", {
+    className: "results-sub"
+  }, "Decks keep topics separate — like \"Spanish Verbs\" or \"Biology Ch. 3\".")), decks.length > 0 && /*#__PURE__*/React.createElement("div", {
+    className: "deck-list"
+  }, decks.map(deck => /*#__PURE__*/React.createElement("div", {
+    className: "deck-row",
+    key: deck.id,
+    onClick: () => openDeck(deck)
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "deck-row-main"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "deck-row-name"
+  }, deck.name), /*#__PURE__*/React.createElement("div", {
+    className: "deck-row-meta"
+  }, deck.cards.length, " card", deck.cards.length !== 1 ? "s" : "")), /*#__PURE__*/React.createElement("button", {
+    className: `btn-delete${confirmDeleteId === deck.id ? " confirming" : ""}`,
+    onClick: e => {
+      e.stopPropagation();
+      handleDeleteDeckTap(deck);
+    },
+    "aria-label": confirmDeleteId === deck.id ? `Confirm delete ${deck.name}` : `Delete ${deck.name}`
+  }, confirmDeleteId === deck.id ? "✓" : "×")))), showNewDeck ? /*#__PURE__*/React.createElement("div", {
+    className: "new-deck-form"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "field-label"
+  }, "Deck name"), /*#__PURE__*/React.createElement("input", {
+    className: "text-input",
+    type: "text",
+    autoFocus: true,
+    placeholder: "e.g. Spanish Verbs",
+    value: newDeckName,
+    onChange: e => setNewDeckName(e.target.value),
+    onKeyDown: e => {
+      if (e.key === "Enter") createDeck();
+    }
+  }), /*#__PURE__*/React.createElement("div", {
+    className: "new-deck-actions"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-skip",
+    style: {
+      height: 48
+    },
+    onClick: () => {
+      setShowNewDeck(false);
+      setNewDeckName("");
+    }
+  }, "Cancel"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-next",
+    style: {
+      height: 48
+    },
+    onClick: createDeck,
+    disabled: !newDeckName.trim()
+  }, "Create"))) : /*#__PURE__*/React.createElement("button", {
+    className: "btn-new-deck",
+    onClick: () => setShowNewDeck(true)
+  }, "+ New deck")), view === "study" && activeDeck && cards.length > 0 && current && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    className: "card-scene",
+    onClick: flip,
+    role: "button",
+    "aria-label": "Flip card"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: `card-3d${flipped ? " flipped" : ""}`
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "card-face card-front"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "card-label"
+  }, "Question"), /*#__PURE__*/React.createElement("span", {
+    className: "card-text"
+  }, current.front), /*#__PURE__*/React.createElement("span", {
+    className: "card-tap-hint"
+  }, "Tap to reveal")), /*#__PURE__*/React.createElement("div", {
+    className: "card-face card-back"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "card-label"
+  }, "Answer"), /*#__PURE__*/React.createElement("span", {
+    className: "card-text"
+  }, current.back)))), flipped ? /*#__PURE__*/React.createElement("div", {
+    className: "actions"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-unknown",
+    onClick: () => mark(false)
+  }, "✕ Still learning"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-known",
+    onClick: () => mark(true)
+  }, "✓ Got it")) : /*#__PURE__*/React.createElement("div", {
+    className: "actions"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-skip",
+    onClick: skip
+  }, "Skip →"), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-next",
+    onClick: flip
+  }, "Reveal answer")), /*#__PURE__*/React.createElement("div", {
+    className: "bottom-row"
+  }, /*#__PURE__*/React.createElement("button", {
+    className: "btn-ghost",
+    onClick: () => setView("add")
+  }, "Manage deck"), /*#__PURE__*/React.createElement("button", {
+    className: "btn-ghost",
+    onClick: restart
+  }, "Restart"))), view === "results" && activeDeck && /*#__PURE__*/React.createElement("div", {
+    className: "results"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "results-emoji"
+  }, known >= cards.length * 0.8 ? "🎉" : known >= cards.length * 0.5 ? "👍" : "💪"), /*#__PURE__*/React.createElement("div", {
+    className: "results-title"
+  }, known >= cards.length * 0.8 ? "Great work!" : known >= cards.length * 0.5 ? "Good effort!" : "Keep practising!"), /*#__PURE__*/React.createElement("div", {
+    className: "results-sub"
+  }, "You got through all ", cards.length, " cards in ", activeDeck.name, "."), /*#__PURE__*/React.createElement("div", {
+    className: "results-stats"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "stat-box stat-known"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "stat-num"
+  }, known), /*#__PURE__*/React.createElement("span", {
+    className: "stat-label"
+  }, "Known")), /*#__PURE__*/React.createElement("div", {
+    className: "stat-box stat-unknown"
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "stat-num"
+  }, unknown), /*#__PURE__*/React.createElement("span", {
+    className: "stat-label"
+  }, "Learning"))), /*#__PURE__*/React.createElement("button", {
+    className: "btn-restart",
+    onClick: restart
+  }, "Study again"), /*#__PURE__*/React.createElement("button", {
+    className: "btn-ghost",
+    onClick: () => setView("add")
+  }, "Manage deck")), view === "add" && activeDeck && /*#__PURE__*/React.createElement("div", {
+    className: "add-screen"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "field-group"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "field-label"
+  }, "Question (front)"), /*#__PURE__*/React.createElement("textarea", {
+    rows: 3,
+    placeholder: "e.g. What is the capital of France?",
+    value: front,
+    onChange: e => setFront(e.target.value)
+  })), /*#__PURE__*/React.createElement("div", {
+    className: "field-group"
+  }, /*#__PURE__*/React.createElement("div", {
+    className: "field-label"
+  }, "Answer (back)"), /*#__PURE__*/React.createElement("textarea", {
+    rows: 3,
+    placeholder: "e.g. Paris",
+    value: back,
+    onChange: e => setBack(e.target.value)
+  })), /*#__PURE__*/React.createElement("button", {
+    className: "btn btn-next",
+    style: {
+      height: 48
+    },
+    onClick: addCard,
+    disabled: !front.trim() || !back.trim()
+  }, "Add card"), cards.length > 0 && /*#__PURE__*/React.createElement("button", {
+    className: "btn-restart",
+    onClick: () => openDeck(activeDeck)
+  }, "Study this deck →"), cards.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
+    className: "field-label",
+    style: {
+      marginTop: 8
+    }
+  }, "Cards in this deck"), /*#__PURE__*/React.createElement("div", {
+    className: "deck-list"
+  }, cards.map(c => /*#__PURE__*/React.createElement("div", {
+    className: "deck-item",
+    key: c.id
+  }, /*#__PURE__*/React.createElement("span", {
+    className: "deck-item-text"
+  }, c.front), /*#__PURE__*/React.createElement("button", {
+    className: "btn-delete",
+    onClick: () => deleteCard(c.id),
+    "aria-label": "Delete card"
+  }, "×"))))))));
 }
-
 try {
-  ReactDOM.createRoot(document.getElementById('root')).render(<FlashcardsApp />);
+  ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(FlashcardsApp));
 } catch (err) {
   document.getElementById('boot-status').style.color = 'red';
   document.getElementById('boot-status').innerText = 'RENDER ERROR: ' + err.message;
