@@ -9,8 +9,22 @@
 <script data-cfasync="false" src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
 <body>
-<div id="root"></div>
+<div id="root">
+  <div id="boot-status" style="font-family: -apple-system, sans-serif; color:#111; background:#fff; padding:20px; font-size:14px; line-height:1.5;">
+    Loading scripts…
+  </div>
+</div>
+<script data-cfasync="false">
+  window.addEventListener('error', function (e) {
+    var el = document.getElementById('boot-status');
+    if (el) {
+      el.style.color = 'red';
+      el.innerText = 'JS ERROR: ' + (e.message || e) + '\n' + (e.filename || '') + ':' + (e.lineno || '');
+    }
+  });
+</script>
 <script type="text/babel" data-presets="react" data-cfasync="false">
+document.getElementById('boot-status').innerText = 'Babel script running…';
 const { useState, useEffect } = React;
 
 let idSeed = 0;
@@ -860,7 +874,12 @@ function FlashcardsApp() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById('root')).render(<FlashcardsApp />);
+try {
+  ReactDOM.createRoot(document.getElementById('root')).render(<FlashcardsApp />);
+} catch (err) {
+  document.getElementById('boot-status').style.color = 'red';
+  document.getElementById('boot-status').innerText = 'RENDER ERROR: ' + err.message;
+}
 </script>
 </body>
 </html>
