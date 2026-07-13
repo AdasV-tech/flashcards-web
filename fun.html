@@ -16,8 +16,9 @@
     text-align: center;
     user-select: none;
     touch-action: manipulation;
+    filter: none;
+    transition: filter 1.2s ease;
   }
-  body.disco { animation-duration: 1.5s; }
   @keyframes rainbow {
     0% { background-position: 0% 50%; }
     100% { background-position: 100% 50%; }
@@ -41,24 +42,15 @@
     gap: 8px;
     padding: 8px 10px;
     margin-top: 6px;
-    background: rgba(0,0,0,0.55);
+    background: rgba(0,0,0,0.6);
     border-radius: 20px;
     border: 3px solid #000;
     z-index: 100;
   }
-  #scoreWrap {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    line-height: 1.05;
-  }
-  #scoreLabel {
-    font-size: clamp(10px, 3vw, 13px);
-    color: #ffe066;
-    letter-spacing: 1px;
-  }
+  #scoreWrap { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.05; }
+  #scoreLabel { font-size: clamp(10px, 3vw, 13px); color: #ffe066; letter-spacing: 1px; }
   #score {
-    font-size: clamp(22px, 7vw, 34px);
+    font-size: clamp(24px, 8vw, 38px);
     font-weight: bold;
     color: #fff700;
     -webkit-text-stroke: 1.5px black;
@@ -70,6 +62,11 @@
     40% { transform: scale(1.5) rotate(-4deg); color:#00ff90; }
     100% { transform: scale(1); }
   }
+  #pps {
+    font-size: clamp(11px, 3.4vw, 14px);
+    color: #7CFFCB;
+    font-weight: bold;
+  }
   #shopBtn {
     font-size: clamp(14px, 4vw, 18px);
     padding: 10px 16px;
@@ -78,32 +75,44 @@
     background: #00e5ff;
     font-weight: bold;
     box-shadow: 0 5px 0 #007a8a;
+    flex-shrink: 0;
   }
   #shopBtn:active { transform: translateY(4px); box-shadow: none; }
+
+  #stageBanner {
+    margin-top: 10px;
+    padding: 6px 16px;
+    border-radius: 30px;
+    border: 3px solid black;
+    background: rgba(0,0,0,0.55);
+    color: white;
+    font-size: clamp(12px, 3.6vw, 15px);
+    font-weight: bold;
+    -webkit-text-stroke: 0.3px black;
+    max-width: 90vw;
+  }
+  #stageBanner .tagline { display:block; font-weight: normal; font-size: 0.85em; opacity: 0.85; }
 
   h1 {
     color: white;
     -webkit-text-stroke: 2px black;
-    font-size: clamp(1.4em, 7vw, 2.4em);
-    margin: 14px 0 6px 0;
+    font-size: clamp(1.3em, 6.5vw, 2.2em);
+    margin: 10px 0 6px 0;
     animation: wiggle 0.6s infinite alternate;
     text-shadow: 3px 3px 0 #000;
   }
-  @keyframes wiggle {
-    0% { transform: rotate(-3deg) scale(1); }
-    100% { transform: rotate(3deg) scale(1.05); }
-  }
+  @keyframes wiggle { 0% { transform: rotate(-3deg) scale(1); } 100% { transform: rotate(3deg) scale(1.05); } }
   #msg {
-    font-size: clamp(1.1em, 4.5vw, 1.6em);
+    font-size: clamp(1em, 4.2vw, 1.5em);
     color: #fff;
     -webkit-text-stroke: 1px black;
-    min-height: 46px;
-    margin-bottom: 14px;
+    min-height: 44px;
+    margin-bottom: 12px;
     padding: 0 8px;
   }
   #chaosBtn {
-    font-size: clamp(1.3em, 6vw, 2.2em);
-    padding: clamp(20px,6vw,30px) clamp(28px,10vw,55px);
+    font-size: clamp(1.2em, 5.6vw, 2em);
+    padding: clamp(18px,5.5vw,28px) clamp(24px,9vw,50px);
     border-radius: 50px;
     border: 8px solid black;
     background: gold;
@@ -122,48 +131,23 @@
     color: white;
     -webkit-text-stroke: 1px black;
   }
-  @keyframes prettyshift {
-    0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; }
-  }
-  @keyframes pulse {
-    0%, 100% { transform: scale(1); }
-    50% { transform: scale(1.06); }
-  }
-  #chaosBtn:active {
-    transform: scale(0.9) translateY(10px);
-    box-shadow: none;
-  }
+  @keyframes prettyshift { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+  @keyframes pulse { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+  #chaosBtn:active { transform: scale(0.9) translateY(10px); box-shadow: none; }
   #crown { display:none; font-size: 1.3em; }
-
-  .float {
-    position: fixed;
-    font-size: 34px;
-    pointer-events: none;
-    top: -50px;
-    z-index: 999;
-    animation: fall linear forwards;
-  }
-  @keyframes fall {
-    to { transform: translateY(110vh) rotate(720deg); }
-  }
-  .trail {
-    position: fixed;
-    font-size: 22px;
-    pointer-events: none;
-    z-index: 998;
-    animation: trailFade 0.6s forwards;
-  }
-  @keyframes trailFade {
-    to { opacity: 0; transform: translateY(-20px) scale(0.5); }
+  #clickPowerTag {
+    margin-top: 8px;
+    font-size: clamp(0.8em, 3.2vw, 0.95em);
+    color: #fff;
+    -webkit-text-stroke: 0.4px black;
   }
 
-  #achievements {
-    color: white;
-    font-size: clamp(0.85em, 3.5vw, 1em);
-    margin-top: 10px;
-    -webkit-text-stroke: 0.5px black;
-    min-height: 20px;
-  }
+  .float { position: fixed; font-size: 32px; pointer-events: none; top: -50px; z-index: 999; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(110vh) rotate(720deg); } }
+  .trail { position: fixed; font-size: 22px; pointer-events: none; z-index: 998; animation: trailFade 0.6s forwards; }
+  @keyframes trailFade { to { opacity: 0; transform: translateY(-20px) scale(0.5); } }
+
+  #achievements { color: white; font-size: clamp(0.8em, 3.3vw, 0.95em); margin-top: 8px; -webkit-text-stroke: 0.5px black; min-height: 20px; }
 
   .shake { animation: screenshake 0.4s; }
   @keyframes screenshake {
@@ -174,116 +158,48 @@
     80% { transform: translate(8px,-12px) rotate(1deg); }
     100% { transform: translate(0,0) rotate(0); }
   }
-  #flashOverlay {
-    position: fixed; top:0; left:0; width:100%; height:100%;
-    background: white; opacity: 0; pointer-events: none; z-index: 9999;
-  }
+  #flashOverlay { position: fixed; top:0; left:0; width:100%; height:100%; background: white; opacity: 0; pointer-events: none; z-index: 9999; }
 
-  #shopModal {
-    display: none;
-    position: fixed; inset: 0;
-    background: rgba(0,0,0,0.75);
-    z-index: 2000;
-    align-items: center;
-    justify-content: center;
-    padding: 16px;
-  }
+  #shopModal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.75); z-index: 2000; align-items: center; justify-content: center; padding: 12px; }
   #shopModal.open { display: flex; }
   #shopBox {
-    background: #1a1a2e;
-    border: 5px solid gold;
-    border-radius: 24px;
-    width: 100%;
-    max-width: 420px;
-    max-height: 85vh;
-    overflow-y: auto;
-    padding: 16px;
-    color: white;
+    background: #1a1a2e; border: 5px solid gold; border-radius: 24px;
+    width: 100%; max-width: 440px; max-height: 88vh; overflow-y: auto;
+    padding: 14px; color: white;
   }
-  #shopBox h2 {
-    margin-top: 0;
-    font-size: clamp(1.3em, 5vw, 1.7em);
-    color: gold;
-    -webkit-text-stroke: 1px black;
+  #shopBox h2 { margin: 4px 0 2px 0; font-size: clamp(1.2em, 4.6vw, 1.5em); color: gold; -webkit-text-stroke: 1px black; }
+  #shopBox .sectionTitle {
+    margin: 14px 0 6px 0; font-size: clamp(0.95em, 3.8vw, 1.1em);
+    color: #7CFFCB; text-align: left; border-bottom: 2px dashed rgba(255,255,255,0.2); padding-bottom: 4px;
   }
+  #shopStats { text-align:left; font-size: 0.8em; opacity: 0.8; margin-bottom: 6px; }
   .item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    background: rgba(255,255,255,0.08);
-    border-radius: 14px;
-    padding: 10px 12px;
-    margin-bottom: 10px;
-    border: 2px solid rgba(255,255,255,0.15);
+    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    background: rgba(255,255,255,0.08); border-radius: 14px; padding: 9px 12px;
+    margin-bottom: 8px; border: 2px solid rgba(255,255,255,0.15);
   }
   .item .info { text-align: left; }
-  .item .name { font-size: clamp(0.95em, 3.8vw, 1.1em); font-weight: bold; }
-  .item .desc { font-size: clamp(0.75em, 3vw, 0.85em); opacity: 0.75; }
+  .item .name { font-size: clamp(0.9em, 3.6vw, 1.05em); font-weight: bold; }
+  .item .desc { font-size: clamp(0.7em, 2.9vw, 0.8em); opacity: 0.75; }
+  .item .desc b { color: #7CFFCB; }
   .item button {
-    font-size: clamp(0.8em, 3.4vw, 0.95em);
-    padding: 8px 14px;
-    border-radius: 12px;
-    border: 2px solid black;
-    background: #00e676;
-    font-weight: bold;
-    white-space: nowrap;
+    font-size: clamp(0.75em, 3.2vw, 0.9em); padding: 8px 12px; border-radius: 12px;
+    border: 2px solid black; background: #00e676; font-weight: bold; white-space: nowrap; min-width: 68px;
   }
   .item button:disabled { background: #555; color: #aaa; }
   .item button.owned { background: gold; color: black; }
-  #closeShop {
-    margin-top: 6px;
-    width: 100%;
-    padding: 12px;
-    border-radius: 14px;
-    border: 3px solid black;
-    background: #ff4d6d;
-    color: white;
-    font-weight: bold;
-    font-size: 1em;
-  }
+  #closeShop { margin-top: 8px; width: 100%; padding: 12px; border-radius: 14px; border: 3px solid black; background: #ff4d6d; color: white; font-weight: bold; font-size: 1em; }
 
   #broadcast {
-    position: fixed;
-    left: 50%;
-    bottom: -300px;
-    transform: translateX(-50%);
-    width: min(92vw, 420px);
-    background: #0d0d0d;
-    border: 4px solid gold;
-    border-radius: 18px;
-    color: white;
-    padding: 14px;
-    z-index: 3000;
-    transition: bottom 0.5s ease;
-    box-shadow: 0 0 20px rgba(0,0,0,0.6);
+    position: fixed; left: 50%; bottom: -300px; transform: translateX(-50%);
+    width: min(92vw, 420px); background: #0d0d0d; border: 4px solid gold; border-radius: 18px;
+    color: white; padding: 14px; z-index: 3000; transition: bottom 0.5s ease; box-shadow: 0 0 20px rgba(0,0,0,0.6);
   }
   #broadcast.show { bottom: 16px; }
-  #broadcast .tag {
-    display: inline-block;
-    background: red;
-    padding: 3px 10px;
-    border-radius: 8px;
-    font-size: 0.75em;
-    font-weight: bold;
-    margin-bottom: 6px;
-  }
-  #broadcast .headline {
-    font-size: clamp(0.95em, 4vw, 1.15em);
-    font-weight: bold;
-    margin-bottom: 4px;
-  }
-  #broadcast .sub {
-    font-size: clamp(0.8em, 3.4vw, 0.95em);
-    opacity: 0.85;
-  }
-  #broadcast .closeX {
-    position: absolute;
-    top: 6px; right: 10px;
-    background: none; border: none;
-    color: white; font-size: 1.3em;
-    cursor: pointer;
-  }
+  #broadcast .tag { display: inline-block; background: red; padding: 3px 10px; border-radius: 8px; font-size: 0.75em; font-weight: bold; margin-bottom: 6px; }
+  #broadcast .headline { font-size: clamp(0.95em, 4vw, 1.15em); font-weight: bold; margin-bottom: 4px; }
+  #broadcast .sub { font-size: clamp(0.8em, 3.4vw, 0.95em); opacity: 0.85; }
+  #broadcast .closeX { position: absolute; top: 6px; right: 10px; background: none; border: none; color: white; font-size: 1.3em; cursor: pointer; }
   .bar-outer { background: #333; border-radius: 8px; height: 10px; margin-top: 8px; overflow: hidden; }
   .bar-inner { background: linear-gradient(90deg, #00ffa2, #00d4ff); height: 100%; width: 0%; transition: width 0.4s linear; }
 </style>
@@ -296,13 +212,20 @@
     <div id="scoreWrap">
       <div id="scoreLabel">CHAOS POINTS</div>
       <div id="score">0</div>
+      <div id="pps">+0/sec</div>
     </div>
     <button id="shopBtn">🛒 SHOP</button>
+  </div>
+
+  <div id="stageBanner">
+    <span id="stageName">🌈 Rainbow Realm</span>
+    <span class="tagline" id="stageTagline">Where it all begins.</span>
   </div>
 
   <h1><span id="crown">👑 </span>🎪 CHAOS BUTTON™ 🎪</h1>
   <div id="msg">Press the button. I dare you.</div>
   <button id="chaosBtn">DO NOT PRESS 🚨</button>
+  <div id="clickPowerTag">+1 per click</div>
   <div id="achievements"></div>
 
 </div>
@@ -310,7 +233,13 @@
 <div id="shopModal">
   <div id="shopBox">
     <h2>🛍️ CHAOS SHOP</h2>
-    <div id="itemsList"></div>
+    <div id="shopStats">Lifetime chaos: <b id="lifetimeStat">0</b></div>
+    <div class="sectionTitle">⚡ CLICK UPGRADES</div>
+    <div id="clickItemsList"></div>
+    <div class="sectionTitle">🏭 AUTO GENERATORS</div>
+    <div id="genItemsList"></div>
+    <div class="sectionTitle">🎨 COSMETICS &amp; BOOSTS</div>
+    <div id="cosmeticItemsList"></div>
     <button id="closeShop">CLOSE</button>
   </div>
 </div>
@@ -330,16 +259,120 @@ const body = document.body;
 const btn = document.getElementById('chaosBtn');
 const msg = document.getElementById('msg');
 const scoreEl = document.getElementById('score');
+const ppsEl = document.getElementById('pps');
 const ach = document.getElementById('achievements');
 const flash = document.getElementById('flashOverlay');
 const crown = document.getElementById('crown');
+const clickPowerTag = document.getElementById('clickPowerTag');
+const stageNameEl = document.getElementById('stageName');
+const stageTaglineEl = document.getElementById('stageTagline');
 
+/* ================= CORE STATE ================= */
 let score = 0;
+let lifetimeScore = 0;
 let clicks = 0;
+let clickPower = 1;
 let multiplier = 1;
+let pps = 0;
 let owned = new Set();
-let autoClickerTimer = null;
+let currentStageKey = null;
 
+/* ================= NUMBER FORMAT ================= */
+function fmt(n) {
+  n = Math.floor(n);
+  if (n < 1000) return n.toString();
+  const units = ['K','M','B','T','Qa','Qi','Sx','Sp','Oc','No','Dc','Ud','Dd'];
+  let u = -1; let num = n;
+  while (num >= 1000 && u < units.length - 1) { num /= 1000; u++; }
+  return num.toFixed(num < 10 ? 2 : 1) + units[u];
+}
+
+/* ================= STAGES (infinite) ================= */
+const masterEmojiPool = ["🎉","🌈","🔥","💥","🐸","🦄","🍕","👽","🎩","💩","🚀","🐙","🍩","👑","🤡","🪩","🧃","🛸","🍭","🍬","🍫","🧁","🍡","🍦","🌙","⭐","✨","🦉","🌌","🔮","🌠","⚡","💠","🌐","🕹️","💾","📡","🌋","🪨","☄️","🧨","🪐","🛰️","💰","🏆","💎","🥇","🧬","🖥️","👾","🐛","🔺"];
+
+const curatedStages = [
+  { key:'rainbow', threshold:0, name:"🌈 Rainbow Realm", tagline:"Where it all begins.", filter:"none", accent:"#ff66cc",
+    emojis:["🎉","🌈","🔥","💥","🐸","🦄","🍕","👽","🎩","💩","🚀","🐙"] },
+  { key:'candy', threshold:500, name:"🍬 Candy Kingdom", tagline:"Sweet, sticky chaos.", filter:"hue-rotate(280deg) saturate(1.6)", accent:"#ff69b4",
+    emojis:["🍭","🍬","🍫","🧁","🍩","🍡","🍦"] },
+  { key:'moon', threshold:2000, name:"🌙 Moonlight Phase", tagline:"The chaos goes nocturnal.", filter:"brightness(0.55) hue-rotate(190deg) saturate(1.4)", accent:"#8ab4ff",
+    emojis:["🌙","⭐","✨","🦉","🌌","🔮","🌠"] },
+  { key:'neon', threshold:8000, name:"⚡ Neon Overdrive", tagline:"Turn it up to eleven.", filter:"hue-rotate(140deg) saturate(2.2) contrast(1.3)", accent:"#00fff2",
+    emojis:["⚡","💠","🌐","🕹️","💾","📡"] },
+  { key:'volcano', threshold:25000, name:"🌋 Volcano Fury", tagline:"It's getting hot in here.", filter:"hue-rotate(-40deg) saturate(2) contrast(1.2) brightness(0.9)", accent:"#ff4500",
+    emojis:["🌋","🔥","💢","🪨","☄️","🧨"] },
+  { key:'galaxy', threshold:80000, name:"🌌 Galactic Drift", tagline:"Floating past reason.", filter:"brightness(0.6) hue-rotate(250deg) saturate(1.8)", accent:"#b388ff",
+    emojis:["🪐","🚀","☄️","👽","🛰️","🌠"] },
+  { key:'gold', threshold:250000, name:"👑 Golden Ascension", tagline:"Absolutely opulent chaos.", filter:"sepia(0.5) saturate(3) hue-rotate(10deg) brightness(1.1)", accent:"#ffd700",
+    emojis:["👑","💰","✨","🏆","💎","🥇"] },
+  { key:'glitch', threshold:800000, name:"🧬 Glitch Dimension", tagline:"Reality.exe has stopped responding.", filter:"invert(0.15) hue-rotate(90deg) saturate(2) contrast(1.4)", accent:"#39ff14",
+    emojis:["🧬","💾","🖥️","👾","🐛","🔺"] }
+];
+
+const adjectives = ["Turbo","Mega","Ultra","Cosmic","Radical","Quantum","Extreme","Funky","Cursed","Divine","Feral","Spicy","Electric","Forbidden","Legendary","Unstable"];
+const nouns = ["Void","Snack","Puddle","Dimension","Zone","Vortex","Kingdom","Realm","Sector","Dojo","Dumpster","Nebula","Carnival","Simulation","Frontier"];
+
+function proceduralStage(n, threshold) {
+  const adj = adjectives[n % adjectives.length];
+  const noun = nouns[(n * 7) % nouns.length];
+  const hue = (n * 53) % 360;
+  const sat = 1.5 + (n % 4) * 0.4;
+  const contrast = 1 + (n % 3) * 0.2;
+  const emojis = [];
+  for (let i=0;i<7;i++) emojis.push(masterEmojiPool[(n*13 + i*5) % masterEmojiPool.length]);
+  return {
+    key: 'proc'+n,
+    threshold,
+    name: `🌀 ${adj} ${noun} Lv.${n - curatedStages.length + 1}`,
+    tagline: "Even the code is confused now.",
+    filter: `hue-rotate(${hue}deg) saturate(${sat}) contrast(${contrast})`,
+    accent: `hsl(${hue},80%,60%)`,
+    emojis
+  };
+}
+
+function getStage(lifetime) {
+  let idx = 0;
+  for (let i=0;i<curatedStages.length;i++) {
+    if (lifetime >= curatedStages[i].threshold) idx = i; else break;
+  }
+  if (idx === curatedStages.length - 1) {
+    let thresh = curatedStages[idx].threshold;
+    let n = idx;
+    let best = curatedStages[idx];
+    while (lifetime >= thresh * 2.3) {
+      thresh *= 2.3;
+      n++;
+      best = proceduralStage(n, thresh);
+    }
+    return best;
+  }
+  return curatedStages[idx];
+}
+
+function currentEmojiSet() {
+  const st = getStage(lifetimeScore);
+  return st.emojis || masterEmojiPool;
+}
+
+function checkStage() {
+  const st = getStage(lifetimeScore);
+  if (st.key !== currentStageKey) {
+    const isFirst = currentStageKey === null;
+    currentStageKey = st.key;
+    stageNameEl.textContent = st.name;
+    stageTaglineEl.textContent = st.tagline;
+    body.style.filter = st.filter;
+    document.getElementById('topbar').style.borderColor = st.accent;
+    if (!isFirst) {
+      showBroadcast({ tag:'🎊 STAGE UP', head: 'Entering: ' + st.name, sub: st.tagline });
+      doFlash();
+      emojiBurst(20);
+    }
+  }
+}
+
+/* ================= CLICK MESSAGES ================= */
 const messages = [
   "You absolute legend, you clicked it.",
   "Congratulations, you now own 3 invisible goats.",
@@ -363,14 +396,14 @@ const messages = [
   "A tiny gremlin high-fived your mouse hand."
 ];
 
-const emojis = ["🎉","🌈","🔥","💥","🐸","🦄","🍕","👽","🎩","💩","🚀","🐙","🍩","👑","🤡","🪩","🧃","🛸"];
-const bgFilters = ["hue-rotate(90deg)","invert(1)","saturate(5)","contrast(2)","grayscale(1)","blur(2px)","sepia(1)","hue-rotate(200deg) saturate(3)",""];
+const bgFilterFlashes = ["invert(1)","saturate(5)","contrast(2)","grayscale(1)","blur(2px)","sepia(1)",""];
 const cursors = ["crosshair","grab","zoom-in","help","not-allowed","wait","cell",""];
 
 function randomFloatEmoji() {
+  const set = currentEmojiSet();
   const el = document.createElement('div');
   el.className = 'float';
-  el.textContent = emojis[Math.floor(Math.random()*emojis.length)];
+  el.textContent = set[Math.floor(Math.random()*set.length)];
   el.style.left = Math.random()*90 + "vw";
   el.style.fontSize = (18 + Math.random()*36) + "px";
   el.style.animationDuration = (1.5 + Math.random()*2) + "s";
@@ -379,28 +412,22 @@ function randomFloatEmoji() {
 }
 function emojiBurst(n) { for (let i=0;i<n;i++) setTimeout(randomFloatEmoji, i*40); }
 
-function doScreenShake() {
-  body.classList.remove('shake');
-  void body.offsetWidth;
-  body.classList.add('shake');
-}
+function doScreenShake() { body.classList.remove('shake'); void body.offsetWidth; body.classList.add('shake'); }
 function doFlash() {
   flash.style.transition = 'none';
   flash.style.opacity = '0.8';
-  requestAnimationFrame(() => {
-    flash.style.transition = 'opacity 0.5s';
-    flash.style.opacity = '0';
-  });
+  requestAnimationFrame(() => { flash.style.transition = 'opacity 0.5s'; flash.style.opacity = '0'; });
 }
-function randomFilter() {
-  body.style.filter = bgFilters[Math.floor(Math.random()*bgFilters.length)];
-  setTimeout(()=>body.style.filter='', 1000);
+function randomFilterFlash() {
+  const baseFilter = getStage(lifetimeScore).filter;
+  body.style.filter = bgFilterFlashes[Math.floor(Math.random()*bgFilterFlashes.length)];
+  setTimeout(()=>{ body.style.filter = baseFilter === 'none' ? '' : baseFilter; }, 1000);
 }
 function randomCursorFx() { body.style.cursor = cursors[Math.floor(Math.random()*cursors.length)]; }
 function spinBody() {
-  body.style.transition = 'transform 0.8s';
+  body.style.transition = 'transform 0.8s, filter 1.2s ease';
   body.style.transform = 'rotate(' + (Math.random()>0.5?360:-360) + 'deg)';
-  setTimeout(() => { body.style.transition='none'; body.style.transform='rotate(0deg)'; }, 850);
+  setTimeout(() => { body.style.transform='rotate(0deg)'; }, 850);
 }
 function growBtn() {
   const scale = 0.7 + Math.random()*1.2;
@@ -413,24 +440,34 @@ function renameBtn() {
   btn.textContent = owned.has('pretty') ? "✨ " + label + " ✨" : label;
 }
 
+/* ================= ACHIEVEMENTS ================= */
 const achievementsList = [
-  {n: 1, text: "🏅 Achievement: First Click!"},
-  {n: 5, text: "🏅 Achievement: Mildly Concerning."},
-  {n: 15, text: "🏅 Achievement: Chaos Enthusiast."},
-  {n: 30, text: "🏅 Achievement: The Button Fears You."},
-  {n: 50, text: "🏅 Achievement: Certified Menace."},
-  {n: 100, text: "🏅 Achievement: You Should Touch Grass."}
+  {n: 1, type:'click', text: "🏅 First Click!"},
+  {n: 15, type:'click', text: "🏅 Chaos Enthusiast."},
+  {n: 100, type:'click', text: "🏅 Certified Menace."},
+  {n: 500, type:'click', text: "🏅 Your finger deserves a medal."},
+  {n: 500, type:'life', text: "🏅 500 Chaos Points earned!"},
+  {n: 5000, type:'life', text: "🏅 5K Club!"},
+  {n: 50000, type:'life', text: "🏅 50K! You're unstoppable."},
+  {n: 500000, type:'life', text: "🏅 Half a million chaos points. Wow."},
+  {n: 5000000, type:'life', text: "🏅 Millionaire x5. Touch grass, maybe."},
 ];
+let achFired = new Set();
 function checkAchievements() {
-  const found = achievementsList.find(a => a.n === clicks);
-  if (found) {
-    ach.textContent = found.text;
-    ach.style.animation = 'none';
-    void ach.offsetWidth;
-    ach.style.animation = 'wiggle 0.4s ease';
-  }
+  achievementsList.forEach((a, i) => {
+    if (achFired.has(i)) return;
+    const val = a.type === 'click' ? clicks : lifetimeScore;
+    if (val >= a.n) {
+      achFired.add(i);
+      ach.textContent = a.text;
+      ach.style.animation = 'none';
+      void ach.offsetWidth;
+      ach.style.animation = 'wiggle 0.4s ease';
+    }
+  });
 }
 
+/* ================= SOUND ================= */
 let audioCtx = null;
 function honk() {
   if (!owned.has('honk')) return;
@@ -448,20 +485,73 @@ function honk() {
   } catch(e) {}
 }
 
-function addScore(amount) {
-  score += Math.round(amount * multiplier);
-  if (score < 0) score = 0;
-  scoreEl.textContent = score;
-  scoreEl.classList.remove('pop');
-  void scoreEl.offsetWidth;
-  scoreEl.classList.add('pop');
+/* ================= GENERATORS (cookie-clicker style) ================= */
+const generators = [
+  { id:'hamster', name:'🐹 Chaos Hamster', desc:'Produces', baseCost:15,  cps:0.2,  count:0 },
+  { id:'frog',    name:'🐸 Frog Minion',   desc:'Produces', baseCost:120, cps:1.5,  count:0 },
+  { id:'candy',   name:'🍭 Candy Golem',   desc:'Produces', baseCost:700, cps:8,    count:0 },
+  { id:'moon',    name:'🌙 Moon Sprite',   desc:'Produces', baseCost:4000, cps:35,  count:0 },
+  { id:'bot',     name:'🤖 Auto Bot Army', desc:'Produces', baseCost:22000, cps:150, count:0 },
+  { id:'dragon',  name:'🐉 Chaos Dragon',  desc:'Produces', baseCost:130000, cps:700, count:0 },
+  { id:'ufo',     name:'🛸 UFO Fleet',     desc:'Produces', baseCost:800000, cps:3200, count:0 },
+  { id:'warper',  name:'🌀 Reality Warper',desc:'Produces', baseCost:6000000, cps:18000, count:0 }
+];
+function genCost(g) { return Math.ceil(g.baseCost * Math.pow(1.15, g.count)); }
+function recomputePPS() {
+  pps = generators.reduce((sum,g) => sum + g.count * g.cps, 0) * multiplier;
+}
+
+/* ================= CLICK UPGRADES (one-time) ================= */
+const clickUpgrades = [
+  { id:'fingers', name:'💪 Stronger Fingers', desc:'+1 click power', cost:50, apply:()=>{ clickPower += 1; } },
+  { id:'doubletap', name:'🔥 Double Tap', desc:'x2 click power', cost:600, apply:()=>{ clickPower *= 2; } },
+  { id:'megaclick', name:'🌟 Mega Click', desc:'+25 click power', cost:5000, apply:()=>{ clickPower += 25; } },
+  { id:'clickmulti2', name:'💎 Click Surge', desc:'x2 click power', cost:30000, apply:()=>{ clickPower *= 2; } },
+  { id:'ultraclick', name:'🚀 Ultra Click', desc:'+250 click power', cost:180000, apply:()=>{ clickPower += 250; } },
+  { id:'clickmulti3', name:'☄️ Click Cataclysm', desc:'x2 click power', cost:1200000, apply:()=>{ clickPower *= 2; } }
+];
+
+/* ================= COSMETICS / GLOBAL BOOSTS ================= */
+const cosmeticItems = [
+  { id:'pretty', name:'✨ Prettier Button', desc:'Glowing gradient chaos button', cost:80,
+    apply: () => btn.classList.add('pretty') },
+  { id:'confetti', name:'🎊 Confetti Overload', desc:'Way more emoji per click', cost:150,
+    apply: () => {} },
+  { id:'cat', name:'🐱 Cursor Trail', desc:'A creature follows your finger/mouse', cost:200,
+    apply: () => {} },
+  { id:'honk', name:'🔊 Honk Sound FX', desc:'Silly honk noise every click', cost:100,
+    apply: () => {} },
+  { id:'crownItem', name:'👑 Golden Crown', desc:'Wear it proudly on the title', cost:500,
+    apply: () => { crown.style.display = 'inline'; } },
+  { id:'globalmulti', name:'💰 Global x2', desc:'Doubles ALL income forever', cost:75000,
+    apply: () => { multiplier *= 2; recomputePPS(); } },
+  { id:'globalmulti2', name:'🏆 Global x2 Again', desc:'Doubles ALL income (stacks!)', cost:2000000,
+    apply: () => { multiplier *= 2; recomputePPS(); } }
+];
+
+/* ================= SCORE ENGINE ================= */
+function addScore(amount, pop) {
+  const gained = amount * multiplier;
+  score += gained;
+  lifetimeScore += gained;
+  scoreEl.textContent = fmt(score);
+  ppsEl.textContent = "+" + fmt(pps) + "/sec";
+  document.getElementById('lifetimeStat').textContent = fmt(lifetimeScore);
+  if (pop) {
+    scoreEl.classList.remove('pop');
+    void scoreEl.offsetWidth;
+    scoreEl.classList.add('pop');
+  }
+  checkStage();
+  checkAchievements();
   refreshShopButtons();
 }
 
+/* ================= MAIN CLICK ================= */
 const chaosActions = [
   () => doScreenShake(),
-  () => emojiBurst(owned.has('confetti') ? 28 : 14),
-  () => randomFilter(),
+  () => emojiBurst(owned.has('confetti') ? 26 : 12),
+  () => randomFilterFlash(),
   () => randomCursorFx(),
   () => spinBody(),
   () => doFlash(),
@@ -470,7 +560,8 @@ const chaosActions = [
 
 btn.addEventListener('click', () => {
   clicks++;
-  addScore(Math.floor(Math.random()*10)+1);
+  const gain = clickPower + Math.floor(Math.random()*3);
+  addScore(gain, true);
   msg.textContent = messages[Math.floor(Math.random()*messages.length)];
   renameBtn();
   honk();
@@ -479,16 +570,24 @@ btn.addEventListener('click', () => {
   const count = 2 + Math.floor(Math.random()*2);
   for (let i=0;i<count;i++) shuffled[i]();
 
-  checkAchievements();
   maybeTriggerBroadcast();
 });
 
+/* auto generator tick */
+setInterval(() => {
+  recomputePPS();
+  if (pps > 0) addScore(pps * 0.2, false);
+}, 200);
+
+/* idle emoji drizzle */
 setInterval(() => { if (Math.random() < 0.5) randomFloatEmoji(); }, 1500);
 
+/* cursor / touch trail */
 function spawnTrail(x, y) {
+  const set = currentEmojiSet();
   const el = document.createElement('div');
   el.className = 'trail';
-  el.textContent = '🐱';
+  el.textContent = set[Math.floor(Math.random()*set.length)];
   el.style.left = (x-11) + 'px';
   el.style.top = (y-11) + 'px';
   document.body.appendChild(el);
@@ -503,75 +602,108 @@ function trailHandler(x, y) {
   spawnTrail(x, y);
 }
 window.addEventListener('mousemove', e => trailHandler(e.clientX, e.clientY));
-window.addEventListener('touchmove', e => {
-  if (e.touches[0]) trailHandler(e.touches[0].clientX, e.touches[0].clientY);
-}, {passive:true});
+window.addEventListener('touchmove', e => { if (e.touches[0]) trailHandler(e.touches[0].clientX, e.touches[0].clientY); }, {passive:true});
 
-const items = [
-  { id:'pretty', name:'✨ Prettier Button', desc:'Glowing gradient chaos button', cost:50,
-    apply: () => btn.classList.add('pretty') },
-  { id:'disco', name:'🌈 Disco Background', desc:'Faster rainbow strobe mode', cost:80,
-    apply: () => body.classList.add('disco') },
-  { id:'multi', name:'💰 Point x2 Multiplier', desc:'Double all chaos points earned', cost:150,
-    apply: () => { multiplier *= 2; } },
-  { id:'confetti', name:'🎊 Confetti Overload', desc:'Way more emoji per click', cost:60,
-    apply: () => {} },
-  { id:'cat', name:'🐱 Cat Cursor Trail', desc:'A cat follows your finger/mouse', cost:40,
-    apply: () => {} },
-  { id:'honk', name:'🔊 Honk Sound FX', desc:'Silly honk noise every click', cost:30,
-    apply: () => {} },
-  { id:'crownItem', name:'👑 Golden Crown', desc:'Wear it proudly on the title', cost:100,
-    apply: () => { crown.style.display = 'inline'; } },
-  { id:'auto', name:'🤖 Auto Clicker Bot', desc:'Auto-generates points every 2s', cost:200,
-    apply: () => {
-      if (autoClickerTimer) return;
-      autoClickerTimer = setInterval(() => {
-        addScore(Math.floor(Math.random()*5)+1);
-        msg.textContent = "🤖 the bot clicked for you. lazy human.";
-      }, 2000);
-    } }
-];
+/* ================= SHOP RENDERING ================= */
+const clickItemsList = document.getElementById('clickItemsList');
+const genItemsList = document.getElementById('genItemsList');
+const cosmeticItemsList = document.getElementById('cosmeticItemsList');
 
-const itemsList = document.getElementById('itemsList');
 function renderShop() {
-  itemsList.innerHTML = '';
-  items.forEach(it => {
+  clickPowerTag.textContent = "+" + fmt(clickPower) + " per click";
+  document.getElementById('lifetimeStat').textContent = fmt(lifetimeScore);
+
+  clickItemsList.innerHTML = '';
+  clickUpgrades.forEach(it => {
+    const isOwned = owned.has(it.id);
     const row = document.createElement('div');
     row.className = 'item';
-    const isOwned = owned.has(it.id);
     row.innerHTML = `
-      <div class="info">
-        <div class="name">${it.name}</div>
-        <div class="desc">${it.desc}</div>
-      </div>
-      <button data-id="${it.id}" ${isOwned ? 'class="owned" disabled' : (score < it.cost ? 'disabled' : '')}>
-        ${isOwned ? 'OWNED ✅' : '💎 ' + it.cost}
-      </button>
-    `;
-    itemsList.appendChild(row);
+      <div class="info"><div class="name">${it.name}</div><div class="desc">${it.desc}</div></div>
+      <button data-kind="click" data-id="${it.id}" ${isOwned ? 'class="owned" disabled' : (score < it.cost ? 'disabled' : '')}>
+        ${isOwned ? 'OWNED ✅' : '💎 ' + fmt(it.cost)}
+      </button>`;
+    clickItemsList.appendChild(row);
   });
-  itemsList.querySelectorAll('button').forEach(b => {
-    b.addEventListener('click', () => purchase(b.getAttribute('data-id')));
+
+  genItemsList.innerHTML = '';
+  generators.forEach(g => {
+    const cost = genCost(g);
+    const row = document.createElement('div');
+    row.className = 'item';
+    row.innerHTML = `
+      <div class="info"><div class="name">${g.name} <span style="opacity:.7">x${g.count}</span></div>
+      <div class="desc">${g.desc} <b>${fmt(g.cps)}/s</b> each</div></div>
+      <button data-kind="gen" data-id="${g.id}" ${score < cost ? 'disabled' : ''}>💎 ${fmt(cost)}</button>`;
+    genItemsList.appendChild(row);
+  });
+
+  cosmeticItemsList.innerHTML = '';
+  cosmeticItems.forEach(it => {
+    const isOwned = owned.has(it.id);
+    const row = document.createElement('div');
+    row.className = 'item';
+    row.innerHTML = `
+      <div class="info"><div class="name">${it.name}</div><div class="desc">${it.desc}</div></div>
+      <button data-kind="cosmetic" data-id="${it.id}" ${isOwned ? 'class="owned" disabled' : (score < it.cost ? 'disabled' : '')}>
+        ${isOwned ? 'OWNED ✅' : '💎 ' + fmt(it.cost)}
+      </button>`;
+    cosmeticItemsList.appendChild(row);
+  });
+
+  document.querySelectorAll('#shopBox button[data-kind]').forEach(b => {
+    b.addEventListener('click', () => purchase(b.getAttribute('data-kind'), b.getAttribute('data-id')));
   });
 }
+
 function refreshShopButtons() {
-  itemsList.querySelectorAll('button').forEach(b => {
+  document.querySelectorAll('#shopBox button[data-kind]').forEach(b => {
+    const kind = b.getAttribute('data-kind');
     const id = b.getAttribute('data-id');
-    if (owned.has(id)) return;
-    const it = items.find(i => i.id === id);
-    b.disabled = score < it.cost;
-    b.textContent = '💎 ' + it.cost;
+    if (kind === 'click') {
+      if (owned.has(id)) return;
+      const it = clickUpgrades.find(i=>i.id===id);
+      b.disabled = score < it.cost;
+    } else if (kind === 'cosmetic') {
+      if (owned.has(id)) return;
+      const it = cosmeticItems.find(i=>i.id===id);
+      b.disabled = score < it.cost;
+    } else if (kind === 'gen') {
+      const g = generators.find(i=>i.id===id);
+      const cost = genCost(g);
+      b.disabled = score < cost;
+      b.textContent = '💎 ' + fmt(cost);
+    }
   });
+  clickPowerTag.textContent = "+" + fmt(clickPower) + " per click";
 }
-function purchase(id) {
-  const it = items.find(i => i.id === id);
-  if (!it || owned.has(id) || score < it.cost) return;
-  score -= it.cost;
-  scoreEl.textContent = score;
-  owned.add(id);
-  it.apply();
+
+function purchase(kind, id) {
+  if (kind === 'click') {
+    const it = clickUpgrades.find(i=>i.id===id);
+    if (!it || owned.has(id) || score < it.cost) return;
+    score -= it.cost;
+    owned.add(id);
+    it.apply();
+    msg.textContent = "⚡ Bought: " + it.name + "!";
+  } else if (kind === 'cosmetic') {
+    const it = cosmeticItems.find(i=>i.id===id);
+    if (!it || owned.has(id) || score < it.cost) return;
+    score -= it.cost;
+    owned.add(id);
+    it.apply();
+    msg.textContent = "🎨 Bought: " + it.name + "!";
+  } else if (kind === 'gen') {
+    const g = generators.find(i=>i.id===id);
+    const cost = genCost(g);
+    if (!g || score < cost) return;
+    score -= cost;
+    g.count++;
+    recomputePPS();
+    msg.textContent = "🏭 Hired another " + g.name + "!";
+  }
+  scoreEl.textContent = fmt(score);
   renderShop();
-  msg.textContent = "🛒 Purchased: " + it.name + "!";
 }
 
 const shopModal = document.getElementById('shopModal');
@@ -579,6 +711,7 @@ document.getElementById('shopBtn').addEventListener('click', () => { renderShop(
 document.getElementById('closeShop').addEventListener('click', () => shopModal.classList.remove('open'));
 shopModal.addEventListener('click', (e) => { if (e.target === shopModal) shopModal.classList.remove('open'); });
 
+/* ================= RANDOM BROADCASTS ================= */
 const broadcast = document.getElementById('broadcast');
 const bTag = document.getElementById('bTag');
 const bHead = document.getElementById('bHead');
@@ -587,47 +720,12 @@ const bBarWrap = document.getElementById('bBarWrap');
 const bBar = document.getElementById('bBar');
 let broadcastTimeout = null;
 
-const newsHeadlines = [
-  "Local Man Discovers Button, Regrets Nothing",
-  "Scientists Confirm: Chaos Points Are 'Basically Currency'",
-  "Area Goat Elected Mayor, Approval Rating Skyrockets",
-  "Breaking: Wi-Fi Achieves Sentience, Demands Snacks",
-  "Study Finds 100% of Buttons Enjoy Being Pressed",
-  "Moon Reportedly 'A Little Extra' Tonight",
-  "Man Yells at Cloud, Cloud Yells Back"
-];
-const weatherReports = [
-  "☀️ 100% chance of chaos with scattered confetti.",
-  "🌧️ Raining cats. Literally. Bring an umbrella.",
-  "🌪️ Tornado warning: tornado made entirely of glitter.",
-  "❄️ Snowing popcorn. Do not eat off the ground.",
-  "🌈 Rainbow detected. Do not attempt to touch it."
-];
-const mukbangLines = [
-  "intense crunching noises... mmm so good 😋",
-  "today we're eating an entire invisible sandwich 🥪",
-  "chef's kiss on this imaginary ramen 🍜👌",
-  "eating 47 tacos in one sitting, wish me luck 🌮",
-  "this soup has no flavor but the sound design is immaculate 🍲"
-];
-const horoscopes = [
-  "Mercury is in your snack drawer. Expect chaos.",
-  "The stars say: click the button one more time.",
-  "Your lucky number today is 'button'.",
-  "A great fortune awaits if you press aggressively.",
-  "Beware of geese. That is all."
-];
-const stocksLines = [
-  "📈 CHAOS Corp up 420% after button incident.",
-  "📉 SnackCo drops 12% amid mukbang shortage.",
-  "📈 Rainbow Industries hits all-time high.",
-  "📉 Wi-Fi Inc. crashes, literally."
-];
-const trafficLines = [
-  "🚗 Heavy traffic caused by a parade of confused geese.",
-  "🚦 All lanes blocked by an enormous inflatable button.",
-  "🚧 Road closed due to excessive rainbow buildup."
-];
+const newsHeadlines = ["Local Man Discovers Button, Regrets Nothing","Scientists Confirm: Chaos Points Are 'Basically Currency'","Area Goat Elected Mayor, Approval Rating Skyrockets","Breaking: Wi-Fi Achieves Sentience, Demands Snacks","Study Finds 100% of Buttons Enjoy Being Pressed","Moon Reportedly 'A Little Extra' Tonight","Man Yells at Cloud, Cloud Yells Back"];
+const weatherReports = ["☀️ 100% chance of chaos with scattered confetti.","🌧️ Raining cats. Literally. Bring an umbrella.","🌪️ Tornado warning: tornado made entirely of glitter.","❄️ Snowing popcorn. Do not eat off the ground.","🌈 Rainbow detected. Do not attempt to touch it."];
+const mukbangLines = ["intense crunching noises... mmm so good 😋","today we're eating an entire invisible sandwich 🥪","chef's kiss on this imaginary ramen 🍜👌","eating 47 tacos in one sitting, wish me luck 🌮","this soup has no flavor but the sound design is immaculate 🍲"];
+const horoscopes = ["Mercury is in your snack drawer. Expect chaos.","The stars say: click the button one more time.","Your lucky number today is 'button'.","A great fortune awaits if you press aggressively.","Beware of geese. That is all."];
+const stocksLines = ["📈 CHAOS Corp up 420% after button incident.","📉 SnackCo drops 12% amid mukbang shortage.","📈 Rainbow Industries hits all-time high.","📉 Wi-Fi Inc. crashes, literally."];
+const trafficLines = ["🚗 Heavy traffic caused by a parade of confused geese.","🚦 All lanes blocked by an enormous inflatable button.","🚧 Road closed due to excessive rainbow buildup."];
 
 const broadcastTypes = [
   () => ({ tag:'🚨 BREAKING NEWS', head: pick(newsHeadlines), sub:'More at 11. Or never.' }),
@@ -661,10 +759,7 @@ function showBroadcast(data) {
   clearTimeout(broadcastTimeout);
   broadcastTimeout = setTimeout(() => broadcast.classList.remove('show'), 5000);
 }
-document.getElementById('broadcastClose').addEventListener('click', () => {
-  clearTimeout(broadcastTimeout);
-  broadcast.classList.remove('show');
-});
+document.getElementById('broadcastClose').addEventListener('click', () => { clearTimeout(broadcastTimeout); broadcast.classList.remove('show'); });
 
 function maybeTriggerBroadcast() {
   if (clicks % (3 + Math.floor(Math.random()*4)) === 0) {
@@ -680,7 +775,11 @@ function scheduleIdleBroadcast() {
 }
 scheduleIdleBroadcast();
 
+/* ================= INIT ================= */
+checkStage();
 renderShop();
+scoreEl.textContent = fmt(score);
+ppsEl.textContent = "+0/sec";
 </script>
 </body>
 </html>
