@@ -1,0 +1,686 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Match Tracker — World Cup 2026</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --ink:#0B1F1A;
+    --ink-2:#0F2921;
+    --pitch:#1F4D3E;
+    --pitch-2:#193F33;
+    --chalk:#F5F3EC;
+    --gold:#C9A227;
+    --gold-soft:#E4C766;
+    --coral:#E4572E;
+    --slate:#8AA39C;
+    --line: rgba(245,243,236,0.14);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background:var(--ink);
+    color:var(--chalk);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:1100px;margin:0 auto;padding:28px 20px 80px;}
+
+  /* ---------- HEADER ---------- */
+  .topline{
+    display:flex;justify-content:space-between;align-items:center;
+    padding-bottom:18px;border-bottom:1px solid var(--line);margin-bottom:22px;
+  }
+  .brand{
+    font-family:'Big Shoulders Display',sans-serif;
+    font-weight:800;font-size:22px;letter-spacing:0.04em;
+    text-transform:uppercase;color:var(--chalk);
+  }
+  .brand span{color:var(--gold);}
+  .live-pill{
+    display:flex;align-items:center;gap:7px;
+    font-family:'IBM Plex Mono',monospace;font-size:12px;letter-spacing:0.08em;
+    text-transform:uppercase;color:var(--slate);
+  }
+  .live-dot{width:7px;height:7px;border-radius:50%;background:var(--slate);}
+  .live-pill.on .live-dot{background:var(--coral);box-shadow:0 0 0 0 rgba(228,87,46,.6);animation:pulse 1.4s infinite;}
+  .live-pill.on{color:var(--coral);}
+  @keyframes pulse{
+    0%{box-shadow:0 0 0 0 rgba(228,87,46,.55);}
+    70%{box-shadow:0 0 0 8px rgba(228,87,46,0);}
+    100%{box-shadow:0 0 0 0 rgba(228,87,46,0);}
+  }
+
+  /* ---------- SCOREBOARD ---------- */
+  .scoreboard{
+    display:grid;grid-template-columns:1fr auto 1fr;
+    align-items:center;gap:18px;
+    padding:22px 6px 26px;
+  }
+  .side{display:flex;align-items:center;gap:14px;}
+  .side.right{flex-direction:row-reverse;text-align:right;}
+  .crest{
+    width:52px;height:52px;border-radius:50%;
+    display:flex;align-items:center;justify-content:center;
+    font-family:'Big Shoulders Display',sans-serif;font-weight:800;font-size:15px;
+    color:var(--ink);flex-shrink:0;border:2px solid rgba(0,0,0,.15);
+  }
+  .team-name{
+    font-family:'Big Shoulders Display',sans-serif;font-weight:700;
+    font-size:20px;text-transform:uppercase;letter-spacing:0.01em;
+  }
+  .team-tag{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--slate);letter-spacing:.08em;}
+  .center-score{text-align:center;}
+  .score-num{
+    font-family:'Big Shoulders Display',sans-serif;font-weight:800;
+    font-size:64px;line-height:1;letter-spacing:0.02em;
+    display:flex;align-items:baseline;gap:14px;justify-content:center;
+  }
+  .score-num .dash{color:var(--slate);font-size:32px;}
+  .clock{
+    margin-top:6px;font-family:'IBM Plex Mono',monospace;font-size:13px;
+    color:var(--gold-soft);letter-spacing:.06em;
+  }
+
+  /* ---------- CONTROLS ---------- */
+  .controls{
+    display:flex;flex-wrap:wrap;gap:10px;align-items:center;
+    padding:14px 16px;background:var(--ink-2);border:1px solid var(--line);
+    border-radius:10px;margin-bottom:22px;
+  }
+  .controls label{font-size:11px;color:var(--slate);text-transform:uppercase;letter-spacing:.07em;margin-right:6px;font-family:'IBM Plex Mono',monospace;}
+  select, button{
+    font-family:'Inter',sans-serif;font-size:13px;font-weight:600;
+    background:var(--ink);color:var(--chalk);border:1px solid var(--line);
+    border-radius:7px;padding:8px 12px;cursor:pointer;
+  }
+  select:focus, button:focus{outline:2px solid var(--gold);outline-offset:1px;}
+  button.primary{background:var(--gold);color:var(--ink);border-color:var(--gold);}
+  button.primary:hover{background:var(--gold-soft);}
+  button.ghost:hover{border-color:var(--slate);}
+  .spacer{flex:1;}
+
+  /* ---------- PITCH ---------- */
+  .pitch-card{
+    border:1px solid var(--line);border-radius:14px;overflow:hidden;
+    margin-bottom:22px;background:var(--ink-2);
+  }
+  .pitch-head{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:14px 18px;border-bottom:1px solid var(--line);
+  }
+  .pitch-head h2{
+    margin:0;font-family:'Big Shoulders Display',sans-serif;font-weight:700;
+    font-size:15px;text-transform:uppercase;letter-spacing:.06em;color:var(--slate);
+  }
+  .pitch-box{
+    position:relative;width:100%;aspect-ratio:16/9.4;
+    background:
+      repeating-linear-gradient(90deg, var(--pitch) 0 8%, var(--pitch-2) 8% 16%);
+  }
+  .pitch-svg{position:absolute;inset:0;width:100%;height:100%;}
+  .dot{
+    position:absolute;width:14px;height:14px;border-radius:50%;
+    transform:translate(-50%,-50%);
+    transition:left 0.85s ease, top 0.85s ease;
+    box-shadow:0 1px 3px rgba(0,0,0,.4);
+  }
+  .dot.home{background:var(--gold);border:2px solid #7a6413;}
+  .dot.away{background:var(--chalk);border:2px solid #9aa3a0;}
+  .ball{
+    position:absolute;width:9px;height:9px;border-radius:50%;
+    background:var(--coral);transform:translate(-50%,-50%);
+    transition:left 0.7s cubic-bezier(.3,.6,.4,1), top 0.7s cubic-bezier(.3,.6,.4,1);
+    box-shadow:0 0 0 3px rgba(228,87,46,.18);
+    z-index:5;
+  }
+  .trail-dot{
+    position:absolute;width:6px;height:6px;border-radius:50%;
+    background:var(--coral);transform:translate(-50%,-50%);
+    pointer-events:none;
+  }
+
+  /* ---------- STATS ---------- */
+  .stats-card{
+    border:1px solid var(--line);border-radius:14px;padding:18px 20px;
+    margin-bottom:22px;background:var(--ink-2);
+  }
+  .stats-card h2{
+    margin:0 0 14px;font-family:'Big Shoulders Display',sans-serif;font-weight:700;
+    font-size:15px;text-transform:uppercase;letter-spacing:.06em;color:var(--slate);
+  }
+  .stat-row{margin-bottom:13px;}
+  .stat-labels{
+    display:flex;justify-content:space-between;
+    font-family:'IBM Plex Mono',monospace;font-size:12.5px;margin-bottom:5px;
+  }
+  .stat-labels .l{color:var(--gold-soft);}
+  .stat-labels .r{color:var(--chalk);}
+  .stat-mid{color:var(--slate);text-transform:uppercase;letter-spacing:.08em;font-size:10.5px;}
+  .bar{
+    display:flex;height:6px;border-radius:4px;overflow:hidden;background:var(--line);
+  }
+  .bar .l-fill{background:var(--gold);height:100%;transition:width .6s ease;}
+  .bar .r-fill{background:var(--chalk);height:100%;transition:width .6s ease;}
+
+  /* ---------- TICKER ---------- */
+  .ticker-card{
+    border:1px solid var(--line);border-radius:14px;background:var(--ink-2);
+    margin-bottom:22px;
+  }
+  .ticker-card h2{
+    margin:0;padding:14px 18px;border-bottom:1px solid var(--line);
+    font-family:'Big Shoulders Display',sans-serif;font-weight:700;
+    font-size:15px;text-transform:uppercase;letter-spacing:.06em;color:var(--slate);
+  }
+  .ticker-list{list-style:none;margin:0;padding:6px 0;max-height:220px;overflow-y:auto;}
+  .ticker-list li{
+    display:flex;gap:12px;padding:9px 18px;font-size:13.5px;
+    border-bottom:1px solid rgba(245,243,236,0.05);
+    animation:fadeIn .4s ease;
+  }
+  @keyframes fadeIn{from{opacity:0;transform:translateY(-4px);}to{opacity:1;transform:translateY(0);}}
+  .ticker-list .min{
+    font-family:'IBM Plex Mono',monospace;color:var(--gold-soft);flex-shrink:0;width:34px;
+  }
+  .ticker-list .empty{color:var(--slate);font-style:italic;padding:18px;}
+
+  /* ---------- OVERLAY ---------- */
+  .overlay{
+    position:fixed;inset:0;background:rgba(11,31,26,0.94);
+    display:none;align-items:center;justify-content:center;flex-direction:column;
+    z-index:100;text-align:center;padding:20px;
+  }
+  .overlay.show{display:flex;}
+  .overlay canvas{position:absolute;inset:0;width:100%;height:100%;}
+  .overlay-content{position:relative;z-index:2;}
+  .overlay .trophy{font-size:52px;margin-bottom:10px;}
+  .overlay h1{
+    font-family:'Big Shoulders Display',sans-serif;font-weight:800;
+    font-size:46px;margin:0 0 6px;text-transform:uppercase;letter-spacing:.02em;
+    color:var(--gold);
+  }
+  .overlay p{color:var(--slate);font-family:'IBM Plex Mono',monospace;font-size:13px;margin:0 0 20px;letter-spacing:.05em;}
+  .overlay.lose h1{color:var(--chalk);}
+  .overlay.draw h1{color:var(--chalk);}
+
+  @media (max-width:640px){
+    .score-num{font-size:44px;}
+    .team-name{font-size:15px;}
+    .crest{width:40px;height:40px;font-size:12px;}
+  }
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="topline">
+    <div class="brand">MATCH<span>TRACK</span> · WC26</div>
+    <div class="live-pill" id="livePill"><span class="live-dot"></span><span id="liveLabel">Not started</span></div>
+  </div>
+
+  <div class="scoreboard">
+    <div class="side">
+      <div class="crest" id="crestHome">BRA</div>
+      <div>
+        <div class="team-name" id="nameHome">Brazil</div>
+        <div class="team-tag">HOME</div>
+      </div>
+    </div>
+    <div class="center-score">
+      <div class="score-num"><span id="scoreHome">0</span><span class="dash">–</span><span id="scoreAway">0</span></div>
+      <div class="clock" id="clock">00:00</div>
+    </div>
+    <div class="side right">
+      <div class="crest" id="crestAway">GER</div>
+      <div>
+        <div class="team-name" id="nameAway">Germany</div>
+        <div class="team-tag">AWAY</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <div>
+      <label for="homeSel">Home</label>
+      <select id="homeSel"></select>
+    </div>
+    <div>
+      <label for="awaySel">Away</label>
+      <select id="awaySel"></select>
+    </div>
+    <div>
+      <label for="supportSel">Supporting</label>
+      <select id="supportSel"></select>
+    </div>
+    <div>
+      <label for="speedSel">Speed</label>
+      <select id="speedSel">
+        <option value="900">Normal</option>
+        <option value="350">Fast</option>
+      </select>
+    </div>
+    <div class="spacer"></div>
+    <button class="ghost" id="resetBtn">Reset</button>
+    <button class="primary" id="playBtn">Kick Off</button>
+  </div>
+
+  <div class="pitch-card">
+    <div class="pitch-head">
+      <h2>Live Positions &amp; Ball Tracking</h2>
+      <span class="team-tag" id="possLabel">50 / 50 possession</span>
+    </div>
+    <div class="pitch-box" id="pitchBox">
+      <svg class="pitch-svg" viewBox="0 0 100 100" preserveAspectRatio="none">
+        <rect x="1" y="1" width="98" height="98" fill="none" stroke="rgba(245,243,236,.35)" stroke-width="0.3"/>
+        <line x1="50" y1="1" x2="50" y2="99" stroke="rgba(245,243,236,.35)" stroke-width="0.3"/>
+        <circle cx="50" cy="50" r="9" fill="none" stroke="rgba(245,243,236,.35)" stroke-width="0.3"/>
+        <circle cx="50" cy="50" r="0.6" fill="rgba(245,243,236,.35)"/>
+        <rect x="1" y="24" width="14" height="52" fill="none" stroke="rgba(245,243,236,.35)" stroke-width="0.3"/>
+        <rect x="85" y="24" width="14" height="52" fill="none" stroke="rgba(245,243,236,.35)" stroke-width="0.3"/>
+        <rect x="1" y="37" width="5.5" height="26" fill="none" stroke="rgba(245,243,236,.35)" stroke-width="0.3"/>
+        <rect x="93.5" y="37" width="5.5" height="26" fill="none" stroke="rgba(245,243,236,.35)" stroke-width="0.3"/>
+      </svg>
+      <!-- dots injected by JS -->
+    </div>
+  </div>
+
+  <div class="stats-card">
+    <h2>Match Stats</h2>
+    <div id="statsHolder"></div>
+  </div>
+
+  <div class="ticker-card">
+    <h2>Match Events</h2>
+    <ul class="ticker-list" id="tickerList"><li class="empty">Kick off to start tracking events…</li></ul>
+  </div>
+</div>
+
+<div class="overlay" id="overlay">
+  <canvas id="confettiCanvas"></canvas>
+  <div class="overlay-content">
+    <div class="trophy" id="overlayEmoji">🏆</div>
+    <h1 id="overlayTitle">FULL TIME</h1>
+    <p id="overlaySub">BRAZIL WIN 2–1</p>
+    <button class="primary" id="closeOverlay">Close</button>
+  </div>
+</div>
+
+<script>
+(function(){
+  const TEAMS = [
+    {id:'BRA', name:'Brazil',   color:'#F2C230', text:'#1a1300'},
+    {id:'GER', name:'Germany',  color:'#F5F3EC', text:'#1a1a1a'},
+    {id:'ARG', name:'Argentina',color:'#7DB4E6', text:'#0a1a2a'},
+    {id:'FRA', name:'France',   color:'#1E3A8A', text:'#F5F3EC'},
+    {id:'ESP', name:'Spain',    color:'#C9302C', text:'#F5F3EC'},
+    {id:'POR', name:'Portugal', color:'#2E7D46', text:'#F5F3EC'},
+    {id:'ENG', name:'England',  color:'#F5F3EC', text:'#1a1a1a'},
+    {id:'USA', name:'USA',      color:'#3C5A99', text:'#F5F3EC'},
+  ];
+
+  // 4-3-3 formation template, home attacks left->right (x:0-100), y:0-100
+  const FORMATION = [
+    {x:6,  y:50},                                   // GK
+    {x:18, y:18},{x:18, y:38},{x:18, y:62},{x:18, y:84}, // back 4
+    {x:34, y:28},{x:34, y:50},{x:34, y:72},          // mid 3
+    {x:46, y:20},{x:46, y:50},{x:46, y:80},          // front 3
+  ];
+
+  const el = (id)=>document.getElementById(id);
+  const homeSel=el('homeSel'), awaySel=el('awaySel'), supportSel=el('supportSel');
+
+  function fillSelect(sel, excludeId){
+    sel.innerHTML = TEAMS.filter(t=>t.id!==excludeId).map(t=>`<option value="${t.id}">${t.name}</option>`).join('');
+  }
+  function refreshTeamSelects(){
+    const curHome = homeSel.value || 'BRA';
+    const curAway = awaySel.value || 'GER';
+    fillSelect(homeSel, null);
+    fillSelect(awaySel, null);
+    homeSel.value = curHome;
+    awaySel.value = curAway;
+    fillSelect(supportSel, null);
+  }
+  refreshTeamSelects();
+  homeSel.value='BRA'; awaySel.value='GER'; supportSel.value='BRA';
+
+  let state = null;
+  let timer = null;
+
+  function teamById(id){ return TEAMS.find(t=>t.id===id); }
+
+  function buildState(){
+    const home = teamById(homeSel.value);
+    const away = teamById(awaySel.value);
+    return {
+      home, away,
+      minute:0, running:false, finished:false,
+      score:{home:0, away:0},
+      stats:{
+        home:{poss:50, shots:0, sot:0, corners:0, fouls:0, passes:0, xg:0},
+        away:{poss:50, shots:0, sot:0, corners:0, fouls:0, passes:0, xg:0},
+      },
+      ballPos:{x:50,y:50},
+      trail:[],
+      events:[],
+      possessionTeam:'home',
+    };
+  }
+
+  function renderTeamsHeader(){
+    el('crestHome').style.background = state.home.color;
+    el('crestHome').style.color = state.home.text;
+    el('crestHome').textContent = state.home.id;
+    el('crestAway').style.background = state.away.color;
+    el('crestAway').style.color = state.away.text;
+    el('crestAway').textContent = state.away.id;
+    el('nameHome').textContent = state.home.name;
+    el('nameAway').textContent = state.away.name;
+  }
+
+  function fmtClock(min){
+    const m = Math.min(min,90);
+    return String(m).padStart(2,'0')+':00';
+  }
+
+  function renderScore(){
+    el('scoreHome').textContent = state.score.home;
+    el('scoreAway').textContent = state.score.away;
+    el('clock').textContent = fmtClock(state.minute) + (state.minute>90?' +'+(state.minute-90):'');
+  }
+
+  function renderStats(){
+    const s = state.stats;
+    const rows = [
+      ['Possession', s.home.poss+'%', s.away.poss+'%', s.home.poss, s.away.poss],
+      ['Shots', s.home.shots, s.away.shots, null, null],
+      ['On Target', s.home.sot, s.away.sot, null, null],
+      ['Expected Goals', s.home.xg.toFixed(2), s.away.xg.toFixed(2), null, null],
+      ['Corners', s.home.corners, s.away.corners, null, null],
+      ['Fouls', s.home.fouls, s.away.fouls, null, null],
+      ['Passes', s.home.passes, s.away.passes, null, null],
+    ];
+    el('statsHolder').innerHTML = rows.map(r=>{
+      let lp, rp;
+      if(r[3]!==null){ lp=r[3]; rp=r[4]; }
+      else{
+        const total = (Number(r[1])+Number(r[2])) || 1;
+        lp = Math.round(Number(r[1])/total*100);
+        rp = 100-lp;
+      }
+      return `<div class="stat-row">
+        <div class="stat-labels"><span class="l">${r[1]}</span><span class="stat-mid">${r[0]}</span><span class="r">${r[2]}</span></div>
+        <div class="bar"><div class="l-fill" style="width:${lp}%"></div><div class="r-fill" style="width:${rp}%"></div></div>
+      </div>`;
+    }).join('');
+    el('possLabel').textContent = `${s.home.poss} / ${s.away.poss} possession`;
+  }
+
+  function pushEvent(text){
+    state.events.unshift({min:state.minute, text});
+    const list = el('tickerList');
+    list.innerHTML = state.events.slice(0,40).map(e=>`<li><span class="min">${e.min}'</span><span>${e.text}</span></li>`).join('');
+  }
+
+  // ---- pitch dots ----
+  let homeDots=[], awayDots=[], ballEl=null, trailEls=[];
+  function buildPitchDots(){
+    const box = el('pitchBox');
+    box.querySelectorAll('.dot,.ball,.trail-dot').forEach(n=>n.remove());
+    homeDots=[]; awayDots=[];
+    FORMATION.forEach((p)=>{
+      const d = document.createElement('div');
+      d.className='dot home';
+      d.style.left=p.x+'%'; d.style.top=p.y+'%';
+      box.appendChild(d);
+      homeDots.push({el:d, base:{x:p.x,y:p.y}});
+    });
+    FORMATION.forEach((p)=>{
+      const d = document.createElement('div');
+      d.className='dot away';
+      const mx = 100-p.x, my=p.y;
+      d.style.left=mx+'%'; d.style.top=my+'%';
+      box.appendChild(d);
+      awayDots.push({el:d, base:{x:mx,y:my}});
+    });
+    ballEl = document.createElement('div');
+    ballEl.className='ball';
+    ballEl.style.left='50%'; ballEl.style.top='50%';
+    box.appendChild(ballEl);
+  }
+
+  function jitterPlayers(){
+    [...homeDots, ...awayDots].forEach(d=>{
+      const jx = d.base.x + (Math.random()*10-5);
+      const jy = d.base.y + (Math.random()*10-5);
+      d.el.style.left = Math.max(3,Math.min(97,jx))+'%';
+      d.el.style.top = Math.max(3,Math.min(97,jy))+'%';
+    });
+  }
+
+  function moveBall(){
+    // bias target toward attacking team's goal sometimes
+    let tx, ty;
+    const attackHome = state.possessionTeam==='home';
+    const towardGoal = Math.random() < 0.35;
+    if(towardGoal){
+      tx = attackHome ? (75+Math.random()*20) : (5+Math.random()*20);
+      ty = 30+Math.random()*40;
+    } else {
+      tx = 15+Math.random()*70;
+      ty = 10+Math.random()*80;
+    }
+    const box = el('pitchBox');
+    const trail = document.createElement('div');
+    trail.className='trail-dot';
+    trail.style.left = state.ballPos.x+'%';
+    trail.style.top = state.ballPos.y+'%';
+    trail.style.opacity='0.5';
+    box.appendChild(trail);
+    trailEls.push(trail);
+    if(trailEls.length>6){
+      const old = trailEls.shift();
+      old.remove();
+    }
+    trailEls.forEach((t,i)=>{ t.style.opacity = (0.12 + i*0.08).toFixed(2); });
+
+    state.ballPos = {x:tx, y:ty};
+    ballEl.style.left = tx+'%';
+    ballEl.style.top = ty+'%';
+  }
+
+  function simulateMinute(){
+    state.minute += 1;
+    const s = state.stats;
+
+    // possession drift
+    const drift = Math.random()*4-2;
+    s.home.poss = Math.max(30, Math.min(70, Math.round(s.home.poss+drift)));
+    s.away.poss = 100-s.home.poss;
+    state.possessionTeam = Math.random()*100 < s.home.poss ? 'home' : 'away';
+
+    s.home.passes += Math.round(3+Math.random()*4);
+    s.away.passes += Math.round(3+Math.random()*4);
+
+    moveBall();
+    jitterPlayers();
+
+    // random events
+    const r = Math.random();
+    const attacker = state.possessionTeam;
+    const atkStats = s[attacker];
+    const atkName = state[attacker].name;
+
+    if(r < 0.10){
+      atkStats.corners += 1;
+      pushEvent(`Corner won by ${atkName}.`);
+    } else if(r < 0.22){
+      atkStats.fouls += 1;
+      pushEvent(`Foul committed against ${atkName}.`);
+    } else if(r < 0.34){
+      atkStats.shots += 1;
+      const onTarget = Math.random() < 0.45;
+      const xgAdd = 0.03+Math.random()*0.18;
+      atkStats.xg += xgAdd;
+      if(onTarget){
+        atkStats.sot += 1;
+        const isGoal = Math.random() < 0.22;
+        if(isGoal){
+          state.score[attacker] += 1;
+          pushEvent(`⚽ GOAL! ${atkName} score! ${state.score.home}–${state.score.away}`);
+          flashGoal(attacker);
+        } else {
+          pushEvent(`Shot on target by ${atkName}, saved.`);
+        }
+      } else {
+        pushEvent(`Shot by ${atkName}, off target.`);
+      }
+    }
+
+    renderScore();
+    renderStats();
+
+    if(state.minute >= 90 + (state.minute>=90 ? 3 : 0) && state.minute>=93){
+      endMatch();
+      return;
+    }
+  }
+
+  function flashGoal(side){
+    const box = el('pitchBox');
+    box.style.boxShadow = 'inset 0 0 0 4px var(--gold)';
+    setTimeout(()=>{ box.style.boxShadow='none'; }, 500);
+  }
+
+  // ---- confetti ----
+  let confettiCtx, confettiParticles=[], confettiRAF=null;
+  function startConfetti(){
+    const canvas = el('confettiCanvas');
+    canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+    confettiCtx = canvas.getContext('2d');
+    const colors = ['#C9A227','#E4C766','#E4572E','#F5F3EC'];
+    confettiParticles = Array.from({length:140}).map(()=>({
+      x: Math.random()*canvas.width,
+      y: -20-Math.random()*canvas.height*0.5,
+      w: 5+Math.random()*5,
+      h: 8+Math.random()*8,
+      vy: 2+Math.random()*3,
+      vx: -1.5+Math.random()*3,
+      rot: Math.random()*360,
+      vr: -6+Math.random()*12,
+      color: colors[Math.floor(Math.random()*colors.length)],
+    }));
+    let frames=0;
+    function draw(){
+      confettiCtx.clearRect(0,0,canvas.width,canvas.height);
+      confettiParticles.forEach(p=>{
+        p.x+=p.vx; p.y+=p.vy; p.rot+=p.vr;
+        confettiCtx.save();
+        confettiCtx.translate(p.x,p.y);
+        confettiCtx.rotate(p.rot*Math.PI/180);
+        confettiCtx.fillStyle=p.color;
+        confettiCtx.fillRect(-p.w/2,-p.h/2,p.w,p.h);
+        confettiCtx.restore();
+      });
+      frames++;
+      if(frames < 260){ confettiRAF = requestAnimationFrame(draw); }
+      else { confettiCtx.clearRect(0,0,canvas.width,canvas.height); }
+    }
+    draw();
+  }
+  function stopConfetti(){
+    if(confettiRAF) cancelAnimationFrame(confettiRAF);
+    if(confettiCtx) confettiCtx.clearRect(0,0,confettiCtx.canvas.width, confettiCtx.canvas.height);
+  }
+
+  function endMatch(){
+    clearInterval(timer); timer=null;
+    state.running=false; state.finished=true;
+    el('playBtn').textContent='Kick Off';
+    el('liveLabel').textContent='Full time';
+    el('livePill').classList.remove('on');
+
+    const support = supportSel.value;
+    const supportSide = support===state.home.id ? 'home' : (support===state.away.id ? 'away':null);
+    const homeWin = state.score.home>state.score.away;
+    const awayWin = state.score.away>state.score.home;
+    const draw = state.score.home===state.score.away;
+
+    const overlay = el('overlay');
+    overlay.classList.remove('lose','draw');
+    const winnerName = homeWin ? state.home.name : (awayWin ? state.away.name : null);
+
+    if(draw){
+      overlay.classList.add('draw');
+      el('overlayEmoji').textContent='🤝';
+      el('overlayTitle').textContent='FULL TIME';
+      el('overlaySub').textContent = `${state.home.name} ${state.score.home}–${state.score.away} ${state.away.name} · Draw`;
+    } else if((supportSide==='home' && homeWin) || (supportSide==='away' && awayWin)){
+      el('overlayEmoji').textContent='🏆';
+      el('overlayTitle').textContent = `${winnerName.toUpperCase()} WIN`;
+      el('overlaySub').textContent = `${state.home.name} ${state.score.home}–${state.score.away} ${state.away.name}`;
+      startConfetti();
+    } else {
+      overlay.classList.add('lose');
+      el('overlayEmoji').textContent='🏟️';
+      el('overlayTitle').textContent='FULL TIME';
+      el('overlaySub').textContent = `${state.home.name} ${state.score.home}–${state.score.away} ${state.away.name} · ${winnerName} win`;
+    }
+    overlay.classList.add('show');
+  }
+
+  function resetAll(){
+    clearInterval(timer); timer=null; stopConfetti();
+    el('overlay').classList.remove('show');
+    state = buildState();
+    renderTeamsHeader();
+    buildPitchDots();
+    renderScore();
+    renderStats();
+    el('tickerList').innerHTML = '<li class="empty">Kick off to start tracking events…</li>';
+    el('playBtn').textContent='Kick Off';
+    el('liveLabel').textContent='Not started';
+    el('livePill').classList.remove('on');
+  }
+
+  el('playBtn').addEventListener('click', ()=>{
+    if(state.finished) resetAll();
+    if(!state.running){
+      state.running=true;
+      el('playBtn').textContent='Pause';
+      el('liveLabel').textContent = 'Live · '+state.minute+"'";
+      el('livePill').classList.add('on');
+      const speed = Number(el('speedSel').value);
+      timer = setInterval(()=>{
+        simulateMinute();
+        el('liveLabel').textContent = 'Live · '+state.minute+"'";
+      }, speed);
+    } else {
+      state.running=false;
+      clearInterval(timer); timer=null;
+      el('playBtn').textContent='Resume';
+      el('liveLabel').textContent = 'Paused · '+state.minute+"'";
+      el('livePill').classList.remove('on');
+    }
+  });
+
+  el('resetBtn').addEventListener('click', resetAll);
+  el('closeOverlay').addEventListener('click', ()=>{
+    el('overlay').classList.remove('show');
+    stopConfetti();
+  });
+
+  homeSel.addEventListener('change', ()=>{ if(homeSel.value===awaySel.value){ awaySel.selectedIndex = (awaySel.selectedIndex+1)%awaySel.options.length; } resetAll(); });
+  awaySel.addEventListener('change', ()=>{ if(awaySel.value===homeSel.value){ homeSel.selectedIndex = (homeSel.selectedIndex+1)%homeSel.options.length; } resetAll(); });
+  supportSel.addEventListener('change', ()=>{}); // no reset needed
+
+  resetAll();
+})();
+</script>
+</body>
+</html>
