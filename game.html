@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scoreboard</title>
+<style>
+  :root{
+    --bg:#12181c;
+    --panel:#1b2328;
+    --line:#2a343a;
+    --ink:#eef2f0;
+    --dim:#8fa0a3;
+    --accent:#e0a028;
+    --accent-dim:#5a481f;
+    --danger:#c9524a;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(1200px 600px at 50% -10%, #1d262b 0%, var(--bg) 60%);
+    color:var(--ink);
+    font-family: 'Courier New', ui-monospace, monospace;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    padding:32px 16px 80px;
+  }
+  h1{
+    font-size:1.1rem;
+    letter-spacing:0.35em;
+    text-transform:uppercase;
+    color:var(--dim);
+    margin:0 0 6px;
+    font-weight:600;
+  }
+  .sub{
+    color:var(--accent);
+    font-size:0.75rem;
+    letter-spacing:0.2em;
+    text-transform:uppercase;
+    margin-bottom:28px;
+  }
+  #board{
+    width:100%;
+    max-width:520px;
+    display:flex;
+    flex-direction:column;
+    gap:14px;
+  }
+  .row{
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:4px;
+    padding:14px 16px;
+    display:flex;
+    align-items:center;
+    gap:12px;
+  }
+  .rank{
+    width:24px;
+    text-align:right;
+    color:var(--dim);
+    font-size:0.85rem;
+  }
+  .name{
+    flex:1;
+    background:transparent;
+    border:none;
+    color:var(--ink);
+    font-family:inherit;
+    font-size:1rem;
+    outline:none;
+    min-width:0;
+    border-bottom:1px solid transparent;
+  }
+  .name:focus{border-bottom:1px solid var(--accent);}
+  .score{
+    font-size:1.6rem;
+    font-weight:700;
+    min-width:56px;
+    text-align:center;
+    color:var(--accent);
+    font-variant-numeric: tabular-nums;
+  }
+  .btn{
+    width:34px;
+    height:34px;
+    border-radius:4px;
+    border:1px solid var(--line);
+    background:#141b1f;
+    color:var(--ink);
+    font-size:1.1rem;
+    line-height:1;
+    cursor:pointer;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    user-select:none;
+  }
+  .btn:hover{border-color:var(--accent);color:var(--accent);}
+  .btn.minus:hover{border-color:var(--danger);color:var(--danger);}
+  .manual{
+    width:52px;
+    background:#141b1f;
+    border:1px solid var(--line);
+    color:var(--ink);
+    font-family:inherit;
+    text-align:center;
+    border-radius:4px;
+    padding:6px 2px;
+    font-size:0.85rem;
+    outline:none;
+  }
+  .manual:focus{border-color:var(--accent);}
+  .remove{
+    background:none;
+    border:none;
+    color:#4a5559;
+    cursor:pointer;
+    font-size:0.9rem;
+    padding:4px;
+  }
+  .remove:hover{color:var(--danger);}
+  #addRow{
+    display:flex;
+    gap:10px;
+    margin-top:8px;
+  }
+  #newName{
+    flex:1;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:4px;
+    color:var(--ink);
+    font-family:inherit;
+    padding:12px 14px;
+    outline:none;
+    font-size:0.95rem;
+  }
+  #newName:focus{border-color:var(--accent);}
+  #addBtn{
+    background:var(--accent-dim);
+    border:1px solid var(--accent);
+    color:var(--accent);
+    border-radius:4px;
+    padding:0 20px;
+    font-family:inherit;
+    letter-spacing:0.1em;
+    text-transform:uppercase;
+    font-size:0.75rem;
+    cursor:pointer;
+  }
+  #addBtn:hover{background:var(--accent);color:#12181c;}
+  #resetBtn{
+    margin-top:32px;
+    background:none;
+    border:1px solid var(--line);
+    color:var(--dim);
+    border-radius:4px;
+    padding:10px 18px;
+    font-family:inherit;
+    font-size:0.7rem;
+    letter-spacing:0.15em;
+    text-transform:uppercase;
+    cursor:pointer;
+  }
+  #resetBtn:hover{border-color:var(--danger);color:var(--danger);}
+  .empty{
+    color:var(--dim);
+    text-align:center;
+    padding:24px;
+    font-size:0.85rem;
+    letter-spacing:0.05em;
+  }
+</style>
+</head>
+<body>
+
+<h1>Scoreboard</h1>
+<div class="sub">manual point tracker</div>
+
+<div id="board"></div>
+
+<div id="addRow">
+  <input id="newName" type="text" placeholder="Player name" maxlength="24">
+  <button id="addBtn" onclick="addPlayer()">Add</button>
+</div>
+
+<button id="resetBtn" onclick="resetAll()">Reset all scores</button>
+
+<script>
+  const STORAGE_KEY = 'scoreboard_state_v1';
+  let players = [];
+  let nextId = 1;
+
+  function save(){
+    try{
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ players, nextId }));
+    }catch(e){ /* storage unavailable, ignore */ }
+  }
+
+  function load(){
+    try{
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if(raw){
+        const data = JSON.parse(raw);
+        players = data.players || [];
+        nextId = data.nextId || 1;
+        return true;
+      }
+    }catch(e){ /* ignore */ }
+    return false;
+  }
+
+  function addPlayer(){
+    const input = document.getElementById('newName');
+    const name = input.value.trim() || 'Player ' + nextId;
+    players.push({ id: nextId++, name, score: 0 });
+    input.value = '';
+    render();
+    save();
+    input.focus();
+  }
+
+  function changeScore(id, delta){
+    const p = players.find(p => p.id === id);
+    if(p) p.score += delta;
+    render();
+    save();
+  }
+
+  function setManual(id, value){
+    const p = players.find(p => p.id === id);
+    const n = parseInt(value, 10);
+    if(p && !isNaN(n)) p.score = n;
+  }
+
+  function addManual(id, input){
+    const n = parseInt(input.value, 10);
+    if(!isNaN(n) && n !== 0){
+      const p = players.find(p => p.id === id);
+      if(p) p.score += n;
+      input.value = '';
+      render();
+      save();
+    }
+  }
+
+  function renamePlayer(id, value){
+    const p = players.find(p => p.id === id);
+    if(p) p.name = value.trim() || p.name;
+    save();
+  }
+
+  function removePlayer(id){
+    players = players.filter(p => p.id !== id);
+    render();
+    save();
+  }
+
+  function resetAll(){
+    players.forEach(p => p.score = 0);
+    render();
+    save();
+  }
+
+  function render(){
+    const board = document.getElementById('board');
+    if(players.length === 0){
+      board.innerHTML = '<div class="empty">No players yet — add one below.</div>';
+      return;
+    }
+    const sorted = [...players].sort((a,b) => b.score - a.score);
+    board.innerHTML = sorted.map((p, i) => `
+      <div class="row">
+        <div class="rank">${i+1}</div>
+        <input class="name" value="${p.name}" onchange="renamePlayer(${p.id}, this.value)">
+        <button class="btn minus" onclick="changeScore(${p.id}, -10)">−10</button>
+        <div class="score">${p.score}</div>
+        <button class="btn plus" onclick="changeScore(${p.id}, 10)">+10</button>
+        <input class="manual" type="number" placeholder="±n"
+          onkeydown="if(event.key==='Enter') addManual(${p.id}, this)">
+        <button class="remove" onclick="removePlayer(${p.id})" title="Remove player">✕</button>
+      </div>
+    `).join('');
+  }
+
+  document.getElementById('newName').addEventListener('keydown', e => {
+    if(e.key === 'Enter') addPlayer();
+  });
+
+  // start with two players so the board isn't empty
+  addPlayer();
+  addPlayer();
+</script>
+
+</body>
+</html>
