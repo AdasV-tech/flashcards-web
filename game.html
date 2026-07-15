@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="lt">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
 <title>Scoreboard</title>
 <style>
   :root{
@@ -15,9 +15,9 @@
     --accent-dim:#5a481f;
     --danger:#c9524a;
   }
-  *{box-sizing:border-box;}
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html,body{margin:0;padding:0;}
   body{
-    margin:0;
     min-height:100vh;
     background:
       radial-gradient(1200px 600px at 50% -10%, #1d262b 0%, var(--bg) 60%);
@@ -26,95 +26,154 @@
     display:flex;
     flex-direction:column;
     align-items:center;
-    padding:32px 16px 80px;
+    padding:20px 14px 60px;
   }
+
+  #langBtn{
+    position:fixed;
+    top:14px;
+    right:14px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    color:var(--accent);
+    border-radius:20px;
+    padding:8px 14px;
+    font-family:inherit;
+    font-size:0.8rem;
+    letter-spacing:0.1em;
+    cursor:pointer;
+    z-index:10;
+  }
+  #langBtn:active{background:var(--accent-dim);}
+
   h1{
-    font-size:1.1rem;
-    letter-spacing:0.35em;
+    font-size:1.05rem;
+    letter-spacing:0.3em;
     text-transform:uppercase;
     color:var(--dim);
-    margin:0 0 6px;
+    margin:34px 0 4px;
     font-weight:600;
+    text-align:center;
   }
   .sub{
     color:var(--accent);
-    font-size:0.75rem;
-    letter-spacing:0.2em;
+    font-size:0.7rem;
+    letter-spacing:0.18em;
     text-transform:uppercase;
-    margin-bottom:28px;
+    margin-bottom:24px;
+    text-align:center;
   }
-  #board{
+
+  #entryForm{
     width:100%;
-    max-width:520px;
+    max-width:460px;
+    background:var(--panel);
+    border:1px solid var(--line);
+    border-radius:8px;
+    padding:16px;
     display:flex;
     flex-direction:column;
-    gap:14px;
+    gap:10px;
+    margin-bottom:26px;
+  }
+  #entryForm label{
+    font-size:0.68rem;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    color:var(--dim);
+  }
+  #entryForm input{
+    width:100%;
+    background:#141b1f;
+    border:1px solid var(--line);
+    border-radius:6px;
+    color:var(--ink);
+    font-family:inherit;
+    padding:13px 12px;
+    font-size:16px;
+    outline:none;
+  }
+  #entryForm input:focus{border-color:var(--accent);}
+  #scoreHint{
+    font-size:0.68rem;
+    color:var(--dim);
+    letter-spacing:0.02em;
+  }
+  #submitBtn{
+    margin-top:4px;
+    background:var(--accent);
+    border:none;
+    color:#12181c;
+    border-radius:6px;
+    padding:14px;
+    font-family:inherit;
+    font-weight:700;
+    letter-spacing:0.12em;
+    text-transform:uppercase;
+    font-size:0.85rem;
+    cursor:pointer;
+  }
+  #submitBtn:active{background:#c78a1f;}
+  #formError{
+    color:var(--danger);
+    font-size:0.72rem;
+    min-height:1em;
+  }
+
+  #board{
+    width:100%;
+    max-width:460px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
   }
   .row{
     background:var(--panel);
     border:1px solid var(--line);
-    border-radius:4px;
-    padding:14px 16px;
+    border-radius:8px;
+    padding:12px 14px;
     display:flex;
     align-items:center;
-    gap:12px;
+    gap:10px;
   }
+  .row.top1{border-color:var(--accent);}
   .rank{
-    width:24px;
-    text-align:right;
+    width:22px;
+    text-align:center;
     color:var(--dim);
     font-size:0.85rem;
+    flex-shrink:0;
   }
-  .name{
+  .row.top1 .rank{color:var(--accent);}
+  .pname{
     flex:1;
-    background:transparent;
-    border:none;
-    color:var(--ink);
-    font-family:inherit;
-    font-size:1rem;
-    outline:none;
-    min-width:0;
-    border-bottom:1px solid transparent;
+    font-size:0.95rem;
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
   }
-  .name:focus{border-bottom:1px solid var(--accent);}
   .score{
-    font-size:1.6rem;
+    font-size:1.4rem;
     font-weight:700;
-    min-width:56px;
-    text-align:center;
+    min-width:52px;
+    text-align:right;
     color:var(--accent);
     font-variant-numeric: tabular-nums;
-  }
-  .btn{
-    width:34px;
-    height:34px;
-    border-radius:4px;
-    border:1px solid var(--line);
-    background:#141b1f;
-    color:var(--ink);
-    font-size:1.1rem;
-    line-height:1;
-    cursor:pointer;
-    display:flex;
-    align-items:center;
-    justify-content:center;
     user-select:none;
+    cursor:default;
   }
-  .btn:hover{border-color:var(--accent);color:var(--accent);}
-  .btn.minus:hover{border-color:var(--danger);color:var(--danger);}
-  .manual{
-    width:52px;
+  .scoreEdit{
+    width:64px;
     background:#141b1f;
-    border:1px solid var(--line);
+    border:1px solid var(--accent);
+    border-radius:4px;
     color:var(--ink);
     font-family:inherit;
-    text-align:center;
-    border-radius:4px;
-    padding:6px 2px;
-    font-size:0.85rem;
+    text-align:right;
+    padding:6px 8px;
+    font-size:1.1rem;
     outline:none;
   }
-  .manual:focus{border-color:var(--accent);}
   .remove{
     background:none;
     border:none;
@@ -122,84 +181,93 @@
     cursor:pointer;
     font-size:0.9rem;
     padding:4px;
+    flex-shrink:0;
   }
-  .remove:hover{color:var(--danger);}
-  #addRow{
-    display:flex;
-    gap:10px;
-    margin-top:8px;
-  }
-  #newName{
-    flex:1;
-    background:var(--panel);
-    border:1px solid var(--line);
-    border-radius:4px;
-    color:var(--ink);
-    font-family:inherit;
-    padding:12px 14px;
-    outline:none;
-    font-size:0.95rem;
-  }
-  #newName:focus{border-color:var(--accent);}
-  #addBtn{
-    background:var(--accent-dim);
-    border:1px solid var(--accent);
-    color:var(--accent);
-    border-radius:4px;
-    padding:0 20px;
-    font-family:inherit;
-    letter-spacing:0.1em;
-    text-transform:uppercase;
-    font-size:0.75rem;
-    cursor:pointer;
-  }
-  #addBtn:hover{background:var(--accent);color:#12181c;}
-  #resetBtn{
-    margin-top:32px;
-    background:none;
-    border:1px solid var(--line);
-    color:var(--dim);
-    border-radius:4px;
-    padding:10px 18px;
-    font-family:inherit;
-    font-size:0.7rem;
-    letter-spacing:0.15em;
-    text-transform:uppercase;
-    cursor:pointer;
-  }
-  #resetBtn:hover{border-color:var(--danger);color:var(--danger);}
+  .remove:active{color:var(--danger);}
   .empty{
     color:var(--dim);
     text-align:center;
     padding:24px;
-    font-size:0.85rem;
+    font-size:0.8rem;
     letter-spacing:0.05em;
+  }
+  #adminTag{
+    margin-top:24px;
+    color:var(--dim);
+    font-size:0.65rem;
+    letter-spacing:0.15em;
+    text-transform:uppercase;
+    text-align:center;
   }
 </style>
 </head>
 <body>
 
-<h1>Scoreboard</h1>
-<div class="sub">manual point tracker</div>
+<button id="langBtn" onclick="toggleLang()">EN</button>
 
-<div id="board"></div>
+<h1 id="title">Rezultatų lentelė</h1>
+<div class="sub" id="subtitle">įvesk savo rezultatą</div>
 
-<div id="addRow">
-  <input id="newName" type="text" placeholder="Player name" maxlength="24">
-  <button id="addBtn" onclick="addPlayer()">Add</button>
+<div id="entryForm">
+  <label id="nameLabel" for="nameInput">Vardas</label>
+  <input id="nameInput" type="text" maxlength="20" autocomplete="off">
+  <label id="scoreLabel" for="scoreInput">Taškai</label>
+  <input id="scoreInput" type="number" min="0" max="300" inputmode="numeric">
+  <div id="scoreHint">0–300</div>
+  <div id="formError"></div>
+  <button id="submitBtn" onclick="submitEntry()">Pridėti</button>
 </div>
 
-<button id="resetBtn" onclick="resetAll()">Reset all scores</button>
+<div id="board"></div>
+<div id="adminTag"></div>
 
 <script>
-  const STORAGE_KEY = 'scoreboard_state_v1';
+  const STORAGE_KEY = 'leaderboard_state_v1';
+  const LANG_KEY = 'leaderboard_lang_v1';
+  const ADMIN_PASSWORD = 'adasKietas';
+  const MAX_SCORE = 300;
+
+  const T = {
+    lt: {
+      title: 'Rezultatų lentelė',
+      subtitle: 'įvesk savo rezultatą',
+      nameLabel: 'Vardas',
+      scoreLabel: 'Taškai',
+      scoreHint: '0–300',
+      submit: 'Pridėti',
+      errName: 'Įvesk vardą',
+      errScore: 'Įvesk taškus nuo 0 iki 300',
+      empty: 'Dar nėra žaidėjų — būk pirmas!',
+      langBtn: 'EN',
+      adminOn: 'Administratoriaus režimas įjungtas',
+      wrongPass: 'Neteisingas slaptažodis',
+      passPrompt: 'Administratoriaus slaptažodis:'
+    },
+    en: {
+      title: 'Leaderboard',
+      subtitle: 'enter your score',
+      nameLabel: 'Name',
+      scoreLabel: 'Score',
+      scoreHint: '0–300',
+      submit: 'Add',
+      errName: 'Enter a name',
+      errScore: 'Enter a score from 0 to 300',
+      empty: 'No players yet — be the first!',
+      langBtn: 'LT',
+      adminOn: 'Admin mode enabled',
+      wrongPass: 'Wrong password',
+      passPrompt: 'Admin password:'
+    }
+  };
+
+  let lang = localStorage.getItem(LANG_KEY) || 'lt';
   let players = [];
   let nextId = 1;
+  let adminUnlocked = false;
 
   function save(){
-    try{
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ players, nextId }));
-    }catch(e){ /* storage unavailable, ignore */ }
+    try{ localStorage.setItem(STORAGE_KEY, JSON.stringify({ players, nextId })); }
+    catch(e){}
   }
 
   function load(){
@@ -209,92 +277,168 @@
         const data = JSON.parse(raw);
         players = data.players || [];
         nextId = data.nextId || 1;
-        return true;
       }
-    }catch(e){ /* ignore */ }
+    }catch(e){}
+  }
+
+  function toggleLang(){
+    lang = lang === 'lt' ? 'en' : 'lt';
+    localStorage.setItem(LANG_KEY, lang);
+    applyLang();
+  }
+
+  function applyLang(){
+    const t = T[lang];
+    document.documentElement.lang = lang;
+    document.getElementById('title').textContent = t.title;
+    document.getElementById('subtitle').textContent = t.subtitle;
+    document.getElementById('nameLabel').textContent = t.nameLabel;
+    document.getElementById('scoreLabel').textContent = t.scoreLabel;
+    document.getElementById('scoreHint').textContent = t.scoreHint;
+    document.getElementById('submitBtn').textContent = t.submit;
+    document.getElementById('langBtn').textContent = t.langBtn;
+    document.getElementById('nameInput').placeholder = t.nameLabel;
+    document.getElementById('scoreInput').placeholder = t.scoreHint;
+    document.getElementById('adminTag').textContent = adminUnlocked ? t.adminOn : '';
+    render();
+  }
+
+  function submitEntry(){
+    const t = T[lang];
+    const nameInput = document.getElementById('nameInput');
+    const scoreInput = document.getElementById('scoreInput');
+    const errBox = document.getElementById('formError');
+    const name = nameInput.value.trim();
+    const scoreRaw = scoreInput.value;
+    const score = parseInt(scoreRaw, 10);
+
+    if(!name){
+      errBox.textContent = t.errName;
+      return;
+    }
+    if(scoreRaw === '' || isNaN(score) || score < 0 || score > MAX_SCORE){
+      errBox.textContent = t.errScore;
+      return;
+    }
+    errBox.textContent = '';
+
+    players.push({ id: nextId++, name, score });
+    nameInput.value = '';
+    scoreInput.value = '';
+    save();
+    render();
+  }
+
+  function tryAdminUnlock(){
+    const t = T[lang];
+    if(adminUnlocked) return true;
+    const pass = prompt(t.passPrompt);
+    if(pass === ADMIN_PASSWORD){
+      adminUnlocked = true;
+      document.getElementById('adminTag').textContent = t.adminOn;
+      return true;
+    } else if(pass !== null){
+      alert(t.wrongPass);
+    }
     return false;
   }
 
-  function addPlayer(){
-    const input = document.getElementById('newName');
-    const name = input.value.trim() || 'Player ' + nextId;
-    players.push({ id: nextId++, name, score: 0 });
-    input.value = '';
-    render();
-    save();
+  function startEdit(id, scoreEl){
+    if(!tryAdminUnlock()) return;
+    const p = players.find(p => p.id === id);
+    if(!p) return;
+    const input = document.createElement('input');
+    input.type = 'number';
+    input.min = 0;
+    input.max = MAX_SCORE;
+    input.value = p.score;
+    input.className = 'scoreEdit';
+    scoreEl.replaceWith(input);
     input.focus();
-  }
+    input.select();
 
-  function changeScore(id, delta){
-    const p = players.find(p => p.id === id);
-    if(p) p.score += delta;
-    render();
-    save();
-  }
-
-  function setManual(id, value){
-    const p = players.find(p => p.id === id);
-    const n = parseInt(value, 10);
-    if(p && !isNaN(n)) p.score = n;
-  }
-
-  function addManual(id, input){
-    const n = parseInt(input.value, 10);
-    if(!isNaN(n) && n !== 0){
-      const p = players.find(p => p.id === id);
-      if(p) p.score += n;
-      input.value = '';
-      render();
+    const commit = () => {
+      let n = parseInt(input.value, 10);
+      if(isNaN(n)) n = p.score;
+      n = Math.max(0, Math.min(MAX_SCORE, n));
+      p.score = n;
       save();
-    }
-  }
-
-  function renamePlayer(id, value){
-    const p = players.find(p => p.id === id);
-    if(p) p.name = value.trim() || p.name;
-    save();
+      render();
+    };
+    input.addEventListener('blur', commit);
+    input.addEventListener('keydown', e => {
+      if(e.key === 'Enter') input.blur();
+    });
   }
 
   function removePlayer(id){
+    if(!tryAdminUnlock()) return;
     players = players.filter(p => p.id !== id);
-    render();
     save();
-  }
-
-  function resetAll(){
-    players.forEach(p => p.score = 0);
     render();
-    save();
   }
 
   function render(){
+    const t = T[lang];
     const board = document.getElementById('board');
     if(players.length === 0){
-      board.innerHTML = '<div class="empty">No players yet — add one below.</div>';
+      board.innerHTML = `<div class="empty">${t.empty}</div>`;
       return;
     }
     const sorted = [...players].sort((a,b) => b.score - a.score);
-    board.innerHTML = sorted.map((p, i) => `
-      <div class="row">
-        <div class="rank">${i+1}</div>
-        <input class="name" value="${p.name}" onchange="renamePlayer(${p.id}, this.value)">
-        <button class="btn minus" onclick="changeScore(${p.id}, -10)">−10</button>
-        <div class="score">${p.score}</div>
-        <button class="btn plus" onclick="changeScore(${p.id}, 10)">+10</button>
-        <input class="manual" type="number" placeholder="±n"
-          onkeydown="if(event.key==='Enter') addManual(${p.id}, this)">
-        <button class="remove" onclick="removePlayer(${p.id})" title="Remove player">✕</button>
-      </div>
-    `).join('');
+    board.innerHTML = '';
+    sorted.forEach((p, i) => {
+      const row = document.createElement('div');
+      row.className = 'row' + (i === 0 ? ' top1' : '');
+
+      const rank = document.createElement('div');
+      rank.className = 'rank';
+      rank.textContent = (i + 1);
+
+      const name = document.createElement('div');
+      name.className = 'pname';
+      name.textContent = p.name;
+
+      const score = document.createElement('div');
+      score.className = 'score';
+      score.textContent = p.score;
+
+      let clickCount = 0;
+      let clickTimer = null;
+      score.addEventListener('click', () => {
+        clickCount++;
+        if(clickCount === 1){
+          clickTimer = setTimeout(() => { clickCount = 0; }, 500);
+        } else if(clickCount === 3){
+          clearTimeout(clickTimer);
+          clickCount = 0;
+          startEdit(p.id, score);
+        }
+      });
+
+      const remove = document.createElement('button');
+      remove.className = 'remove';
+      remove.textContent = '✕';
+      remove.style.display = adminUnlocked ? 'block' : 'none';
+      remove.onclick = () => removePlayer(p.id);
+
+      row.appendChild(rank);
+      row.appendChild(name);
+      row.appendChild(score);
+      row.appendChild(remove);
+      board.appendChild(row);
+    });
   }
 
-  document.getElementById('newName').addEventListener('keydown', e => {
-    if(e.key === 'Enter') addPlayer();
+  document.getElementById('scoreInput').addEventListener('keydown', e => {
+    if(e.key === 'Enter') submitEntry();
+  });
+  document.getElementById('nameInput').addEventListener('keydown', e => {
+    if(e.key === 'Enter') document.getElementById('scoreInput').focus();
   });
 
-  // start with two players so the board isn't empty
-  addPlayer();
-  addPlayer();
+  load();
+  applyLang();
 </script>
 
 </body>
