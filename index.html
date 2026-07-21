@@ -65,9 +65,19 @@
       return dt.toLocaleDateString(undefined, { month: "short", day: "numeric", year: y === new Date().getFullYear() ? undefined : "numeric" });
     }
 
-    // ---------- Free tier limits (time-based, no payment) ----------
-    const FREE_DECK_LIMIT = 3;           // decks allowed before earning more
-    const UNLOCK_INTERVAL_SECONDS = 15 * 60; // 15 minutes of active app use = +1 deck slot
+    // ---------- Credit shop: spend earned time-credits, not money ----------
+    // 1 credit = 1 minute of active app use.
+    const SUPER_PACKAGES = [
+      { key: "s1h", label: "1 hour", seconds: 3600, cost: 60 },
+      { key: "s24h", label: "24 hours", seconds: 86400, cost: 600 },
+      { key: "s7d", label: "7 days", seconds: 604800, cost: 3000 }
+    ];
+
+    function formatExpiry(ms) {
+      if (!ms) return "";
+      const d = new Date(ms);
+      return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    }
 
     function formatDuration(totalSeconds) {
       const s = Math.max(0, Math.floor(totalSeconds || 0));
@@ -157,6 +167,8 @@
           totalSessionsCompleted: 0,
           totalCardsReviewed: 0,
           totalActiveSeconds: 0,
+          creditSeconds: 0,
+          superPremiumExpiresAt: 0,
           todayLog: { date: today, entries: [] }
         }
       };
@@ -194,6 +206,8 @@
             totalSessionsCompleted: typeof stats.totalSessionsCompleted === "number" ? stats.totalSessionsCompleted : 0,
             totalCardsReviewed: typeof stats.totalCardsReviewed === "number" ? stats.totalCardsReviewed : 0,
             totalActiveSeconds: typeof stats.totalActiveSeconds === "number" ? stats.totalActiveSeconds : 0,
+            creditSeconds: typeof stats.creditSeconds === "number" ? stats.creditSeconds : 0,
+            superPremiumExpiresAt: typeof stats.superPremiumExpiresAt === "number" ? stats.superPremiumExpiresAt : 0,
             todayLog
           }
         };
@@ -969,58 +983,84 @@
         .ad-banner { min-height: 100px; }
       }
 
-      /* Deck-slot / time-currency progress */
-      .slots-bar {
+      /* Premium / Super Premium status banner */
+      .status-banner {
+        border-radius: 14px;
+        padding: 14px 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        font-size: 14px;
+        font-weight: 700;
+      }
+      .status-premium {
+        background: rgba(124,111,255,0.16);
+        border: 1px solid #7C6FFF;
+        color: #C9C2FF;
+      }
+      .status-super {
+        background: rgba(34,197,94,0.14);
+        border: 1px solid #22C55E;
+        color: #9CE8B8;
+      }
+      .status-banner-sub {
+        font-size: 12px;
+        font-weight: 600;
+        opacity: 0.8;
+      }
+
+      /* Credits shop */
+      .shop-page {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding-top: 4px;
+      }
+      .shop-balance {
+        background: #1C1C2E;
+        border: 1px solid #2A2A40;
+        border-radius: 14px;
+        padding: 20px 16px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 4px;
+      }
+      .shop-balance-num {
+        font-size: 34px;
+        font-weight: 700;
+        color: #BF9FFF;
+      }
+      .shop-balance-label {
+        font-size: 12px;
+        color: #6B6B8A;
+      }
+      .shop-pkg-row {
         background: #1C1C2E;
         border: 1px solid #2A2A40;
         border-radius: 12px;
         padding: 12px 14px;
         display: flex;
-        flex-direction: column;
-        gap: 6px;
-      }
-      .slots-bar-row {
-        display: flex;
+        align-items: center;
         justify-content: space-between;
-        align-items: center;
-        font-size: 12px;
-        font-weight: 600;
-        color: #B0B0CC;
-      }
-      .slots-bar-row .slots-count { color: #F0F0F8; font-weight: 700; }
-      .slots-progress-track {
-        height: 5px;
-        background: #14141F;
-        border-radius: 99px;
-        overflow: hidden;
-      }
-      .slots-progress-fill {
-        height: 100%;
-        background: linear-gradient(90deg, #7C6FFF, #BF7FFF);
-        border-radius: 99px;
-        transition: width 0.4s ease;
-      }
-      .slots-bar-hint {
-        font-size: 11px;
-        color: #6B6B8A;
-      }
-
-      .limit-panel {
-        background: #1C1C2E;
-        border: 1px solid #2A2A40;
-        border-radius: 14px;
-        padding: 20px 18px;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        text-align: center;
         gap: 10px;
       }
-      .limit-panel-icon { font-size: 32px; }
-      .limit-panel-title { font-size: 16px; font-weight: 700; }
-      .limit-panel-sub { font-size: 13px; color: #6B6B8A; line-height: 1.5; }
-      .limit-panel .slots-progress-track { width: 100%; margin-top: 6px; }
-      .limit-panel-label { font-size: 12px; color: #9B93FF; font-weight: 600; }
+      .shop-pkg-main {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+      }
+      .shop-pkg-label { font-size: 14px; font-weight: 600; }
+      .shop-pkg-cost { font-size: 12px; color: #6B6B8A; }
+      .shop-note {
+        font-size: 12px;
+        color: #6B6B8A;
+        text-align: center;
+        line-height: 1.5;
+        padding: 4px 8px 0;
+      }
 
       .empty-state {
         flex: 1;
@@ -1114,7 +1154,11 @@
           pendingSecondsRef.current = 0;
           setData(d => ({
             ...d,
-            sessionStats: { ...d.sessionStats, totalActiveSeconds: (d.sessionStats.totalActiveSeconds || 0) + add }
+            sessionStats: {
+              ...d.sessionStats,
+              totalActiveSeconds: (d.sessionStats.totalActiveSeconds || 0) + add,
+              creditSeconds: (d.sessionStats.creditSeconds || 0) + add
+            }
           }));
         };
         const tick = setInterval(() => {
@@ -1141,6 +1185,36 @@
       const secondsIntoSlot = totalActiveSeconds % UNLOCK_INTERVAL_SECONDS;
       const secondsToNextSlot = UNLOCK_INTERVAL_SECONDS - secondsIntoSlot;
       const nextSlotProgressPct = (secondsIntoSlot / UNLOCK_INTERVAL_SECONDS) * 100;
+
+      const nowMs = Date.now();
+      const premiumExpiresAt = data ? (data.sessionStats.premiumExpiresAt || 0) : 0;
+      const superPremiumExpiresAt = data ? (data.sessionStats.superPremiumExpiresAt || 0) : 0;
+      const premiumActive = premiumExpiresAt > nowMs;
+      const superPremiumActive = superPremiumExpiresAt > nowMs;
+      const unlimitedDecks = premiumActive || superPremiumActive;
+      const adsRemoved = superPremiumActive;
+      const creditSeconds = data ? (data.sessionStats.creditSeconds || 0) : 0;
+      const credits = Math.floor(creditSeconds / 60);
+
+      function purchase(tier, seconds, cost) {
+        setData(d => {
+          const remainingCredits = Math.floor((d.sessionStats.creditSeconds || 0) / 60);
+          if (remainingCredits < cost) return d;
+          const now = Date.now();
+          const key = tier === "super" ? "superPremiumExpiresAt" : "premiumExpiresAt";
+          const current = d.sessionStats[key] || 0;
+          const base = current > now ? current : now;
+          return {
+            ...d,
+            sessionStats: {
+              ...d.sessionStats,
+              creditSeconds: (d.sessionStats.creditSeconds || 0) - cost * 60,
+              [key]: base + seconds * 1000
+            }
+          };
+        });
+      }
+
       const activeDeck = data ? (data.decks.find(d => d.id === activeDeckId) || null) : null;
       const currentCard = activeDeck && queue.length > 0 ? activeDeck.cards.find(c => c.id === queue[sessionIndex]) : null;
       const progress = queue.length > 0 ? sessionIndex / queue.length : 0;
@@ -1332,6 +1406,7 @@
       // ---------- Header ----------
       const headerTitle = view === "home" ? "Flashcards"
         : view === "stats" ? "Stats"
+        : view === "shop" ? "Credits Shop"
         : view === "form" ? (editingCardId ? "Edit card" : "Add card")
         : activeDeck ? activeDeck.name : "";
 
@@ -1340,12 +1415,13 @@
           view !== "home" && e("button", { className: "btn-back", onClick: () => {
             if (view === "study" || view === "results") { setView("deck"); setFlipped(false); }
             else if (view === "form") { setView(returnView); setEditingCardId(null); }
-            else if (view === "stats") { setView("home"); }
+            else if (view === "stats" || view === "shop") { setView("home"); }
             else { goHome(); }
           }, "aria-label": "Back" }, "‹"),
           e("span", { className: "header-title" }, headerTitle)
         ),
         e("div", { className: "header-right" },
+          view === "home" && e("button", { className: "icon-btn", onClick: () => setView("shop"), "aria-label": "Credits shop" }, "💎"),
           view === "home" && e("button", { className: "icon-btn", onClick: () => setView("stats"), "aria-label": "Stats" }, "📊"),
           view === "home" && e("span", { className: "header-count" }, `${decks.length} deck${decks.length !== 1 ? "s" : ""}`),
           view === "study" && queue.length > 0 && e("span", { className: "header-count" }, `${sessionIndex + 1} of ${queue.length}`),
@@ -1365,7 +1441,8 @@
           saveError && e("div", { className: "storage-warning" }, "Storage is full or unavailable — your latest changes may not be saved."),
           decks.length > 0 && e("div", { className: "home-stats-row" },
             e("div", { className: "mini-stat" }, e("span", { className: "mini-stat-num" }, totalDueAll), e("span", { className: "mini-stat-label" }, "Due today")),
-            e("div", { className: "mini-stat" }, e("span", { className: "mini-stat-num" }, data.sessionStats.streak), e("span", { className: "mini-stat-label" }, "Day streak"))
+            e("div", { className: "mini-stat" }, e("span", { className: "mini-stat-num" }, data.sessionStats.streak), e("span", { className: "mini-stat-label" }, "Day streak")),
+            e("div", { className: "mini-stat", onClick: () => setView("shop"), style: { cursor: "pointer" } }, e("span", { className: "mini-stat-num" }, credits), e("span", { className: "mini-stat-label" }, "Credits"))
           ),
           decks.length === 0 && e("div", { className: "empty-state" },
             e("div", { className: "empty-emoji" }, "🗂️"),
@@ -1386,24 +1463,33 @@
             );
           })),
 
-          e(AdBanner, { slot: "1111111111" }),
+          !adsRemoved && e(AdBanner, { slot: "1111111111" }),
 
-          e("div", { className: "slots-bar" },
+          superPremiumActive ? e("div", { className: "status-banner status-super" },
+            e("span", null, "✨ Super Premium active — unlimited decks, no ads"),
+            e("span", { className: "status-banner-sub" }, `Until ${formatExpiry(superPremiumExpiresAt)}`)
+          ) : premiumActive ? e("div", { className: "status-banner status-premium" },
+            e("span", null, "⭐ Premium active — unlimited decks"),
+            e("span", { className: "status-banner-sub" }, `Until ${formatExpiry(premiumExpiresAt)}`)
+          ) : e("div", { className: "slots-bar" },
             e("div", { className: "slots-bar-row" },
               e("span", null, "Deck slots ", e("span", { className: "slots-count" }, `${decks.length} / ${deckLimit}`)),
               e("span", null, extraDeckSlots > 0 ? `+${extraDeckSlots} earned` : "")
             ),
             e("div", { className: "slots-progress-track" }, e("div", { className: "slots-progress-fill", style: { width: `${nextSlotProgressPct}%` } })),
-            e("div", { className: "slots-bar-hint" }, `Next free slot in ~${Math.max(1, Math.ceil(secondsToNextSlot / 60))} min of app use — your time is the currency here, not money.`)
+            e("div", { className: "slots-bar-hint" }, `Next free slot in ~${Math.max(1, Math.ceil(secondsToNextSlot / 60))} min of app use, or spend credits in the shop for instant unlimited decks.`)
           ),
 
           showLimitModal ? e("div", { className: "limit-panel" },
             e("div", { className: "limit-panel-icon" }, "🔒"),
             e("div", { className: "limit-panel-title" }, "Deck limit reached"),
-            e("div", { className: "limit-panel-sub" }, `You've used all ${deckLimit} deck slots. Keep using the app and new slots unlock automatically — nothing to pay.`),
+            e("div", { className: "limit-panel-sub" }, `You've used all ${deckLimit} deck slots. New slots unlock automatically the more you use the app, or spend credits in the shop for unlimited decks right now.`),
             e("div", { className: "slots-progress-track" }, e("div", { className: "slots-progress-fill", style: { width: `${nextSlotProgressPct}%` } })),
             e("div", { className: "limit-panel-label" }, `~${Math.max(1, Math.ceil(secondsToNextSlot / 60))} min of active use until your next slot`),
-            e("button", { className: "btn btn-secondary btn-full", onClick: () => setShowLimitModal(false) }, "Got it")
+            e("div", { className: "inline-form-actions" },
+              e("button", { className: "btn btn-secondary", onClick: () => setShowLimitModal(false) }, "Got it"),
+              e("button", { className: "btn btn-primary", onClick: () => { setShowLimitModal(false); setView("shop"); } }, "Open shop")
+            )
           ) : showNewDeck ? e("div", { className: "new-deck-form" },
             e("div", { className: "field-label" }, "Deck name"),
             e("input", {
@@ -1417,8 +1503,8 @@
             )
           ) : e("button", {
             className: "btn-new-deck",
-            onClick: () => { if (decks.length >= deckLimit) setShowLimitModal(true); else setShowNewDeck(true); }
-          }, decks.length >= deckLimit ? "🔒 Deck limit reached" : "+ New deck")
+            onClick: () => { if (!unlimitedDecks && decks.length >= deckLimit) setShowLimitModal(true); else setShowNewDeck(true); }
+          }, (!unlimitedDecks && decks.length >= deckLimit) ? "🔒 Deck limit reached" : "+ New deck")
         );
       }
 
@@ -1452,7 +1538,7 @@
           ),
           deckDue === 0 && activeDeck.cards.length > 0 && e("div", { className: "btn-study-note" }, "No cards due today — tap Study to review everything anyway."),
 
-          e(AdBanner, { slot: "2222222222" }),
+          !adsRemoved && e(AdBanner, { slot: "2222222222" }),
 
           activeDeck.cards.length > 0 && e(React.Fragment, null,
             e("div", { className: "card-list-section-label" }, "Cards"),
@@ -1579,6 +1665,43 @@
               );
             }))
           )
+        );
+      }
+
+      // ---------- Credits shop ----------
+      else if (view === "shop") {
+        const packageRow = (pkg, tier) => {
+          const affordable = credits >= pkg.cost;
+          return e("div", { className: "shop-pkg-row", key: pkg.key },
+            e("div", { className: "shop-pkg-main" },
+              e("span", { className: "shop-pkg-label" }, pkg.label),
+              e("span", { className: "shop-pkg-cost" }, `${pkg.cost} credits`)
+            ),
+            e("button", {
+              className: "btn btn-secondary",
+              style: { flex: "none", height: 40, padding: "0 18px" },
+              disabled: !affordable,
+              onClick: () => purchase(tier, pkg.seconds, pkg.cost)
+            }, affordable ? "Buy" : "Need more")
+          );
+        };
+        body = e("div", { className: "shop-page" },
+          e("div", { className: "shop-balance" },
+            e("span", { className: "shop-balance-num" }, credits),
+            e("span", { className: "shop-balance-label" }, "credits available — earned 1 per minute of app use")
+          ),
+          (premiumActive || superPremiumActive) && e("div", { className: `status-banner ${superPremiumActive ? "status-super" : "status-premium"}` },
+            e("span", null, superPremiumActive ? "✨ Super Premium active" : "⭐ Premium active"),
+            e("span", { className: "status-banner-sub" }, `Until ${formatExpiry(superPremiumActive ? superPremiumExpiresAt : premiumExpiresAt)}`)
+          ),
+
+          e("div", { className: "stats-section-title" }, "Premium — unlimited deck slots"),
+          e("div", { className: "deck-list" }, PREMIUM_PACKAGES.map(pkg => packageRow(pkg, "premium"))),
+
+          e("div", { className: "stats-section-title" }, "Super Premium — unlimited decks + no ads"),
+          e("div", { className: "deck-list" }, SUPER_PACKAGES.map(pkg => packageRow(pkg, "super"))),
+
+          e("div", { className: "shop-note" }, "Purchases stack on top of any time you already have. No money involved — credits come only from using the app.")
         );
       }
 
