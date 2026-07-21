@@ -6,6 +6,8 @@
 <title>Flashcards</title>
 <script data-cfasync="false" src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script data-cfasync="false" src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<!-- Google AdSense — replace ca-pub-XXXXXXXXXXXXXXXX with your real publisher ID once approved -->
+<script async data-cfasync="false" src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script>
 </head>
 <body>
 <div id="root">
@@ -61,6 +63,19 @@
       const [y, m, d] = dateStr.split("-").map(Number);
       const dt = new Date(y, m - 1, d);
       return dt.toLocaleDateString(undefined, { month: "short", day: "numeric", year: y === new Date().getFullYear() ? undefined : "numeric" });
+    }
+
+    // ---------- Free tier limits (time-based, no payment) ----------
+    const FREE_DECK_LIMIT = 3;           // decks allowed before earning more
+    const UNLOCK_INTERVAL_SECONDS = 15 * 60; // 15 minutes of active app use = +1 deck slot
+
+    function formatDuration(totalSeconds) {
+      const s = Math.max(0, Math.floor(totalSeconds || 0));
+      const h = Math.floor(s / 3600);
+      const m = Math.floor((s % 3600) / 60);
+      if (h > 0) return `${h}h ${m}m`;
+      if (m > 0) return `${m}m`;
+      return `${s}s`;
     }
 
     // ---------- Card factory ----------
@@ -141,6 +156,7 @@
           longestStreak: 0,
           totalSessionsCompleted: 0,
           totalCardsReviewed: 0,
+          totalActiveSeconds: 0,
           todayLog: { date: today, entries: [] }
         }
       };
@@ -177,6 +193,7 @@
             longestStreak: typeof stats.longestStreak === "number" ? stats.longestStreak : 0,
             totalSessionsCompleted: typeof stats.totalSessionsCompleted === "number" ? stats.totalSessionsCompleted : 0,
             totalCardsReviewed: typeof stats.totalCardsReviewed === "number" ? stats.totalCardsReviewed : 0,
+            totalActiveSeconds: typeof stats.totalActiveSeconds === "number" ? stats.totalActiveSeconds : 0,
             todayLog
           }
         };
@@ -926,6 +943,85 @@
         flex-shrink: 0;
       }
 
+      /* Ad banner (Google AdSense placeholder) */
+      .ad-banner {
+        background: #14141F;
+        border: 1px dashed #2A2A40;
+        border-radius: 12px;
+        min-height: 90px;
+        padding: 8px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+      }
+      .ad-banner-label {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #4A4A66;
+        margin-bottom: 6px;
+      }
+      .ad-banner ins.adsbygoogle { width: 100%; }
+      @media (min-width: 480px) {
+        .ad-banner { min-height: 100px; }
+      }
+
+      /* Deck-slot / time-currency progress */
+      .slots-bar {
+        background: #1C1C2E;
+        border: 1px solid #2A2A40;
+        border-radius: 12px;
+        padding: 12px 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+      }
+      .slots-bar-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 12px;
+        font-weight: 600;
+        color: #B0B0CC;
+      }
+      .slots-bar-row .slots-count { color: #F0F0F8; font-weight: 700; }
+      .slots-progress-track {
+        height: 5px;
+        background: #14141F;
+        border-radius: 99px;
+        overflow: hidden;
+      }
+      .slots-progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #7C6FFF, #BF7FFF);
+        border-radius: 99px;
+        transition: width 0.4s ease;
+      }
+      .slots-bar-hint {
+        font-size: 11px;
+        color: #6B6B8A;
+      }
+
+      .limit-panel {
+        background: #1C1C2E;
+        border: 1px solid #2A2A40;
+        border-radius: 14px;
+        padding: 20px 18px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+        gap: 10px;
+      }
+      .limit-panel-icon { font-size: 32px; }
+      .limit-panel-title { font-size: 16px; font-weight: 700; }
+      .limit-panel-sub { font-size: 13px; color: #6B6B8A; line-height: 1.5; }
+      .limit-panel .slots-progress-track { width: 100%; margin-top: 6px; }
+      .limit-panel-label { font-size: 12px; color: #9B93FF; font-weight: 600; }
+
       .empty-state {
         flex: 1;
         display: flex;
@@ -941,6 +1037,32 @@
       .empty-sub { font-size: 13px; color: #6B6B8A; line-height: 1.5; }
     `;
 
+    // Google AdSense banner. Replace data-ad-client / data-ad-slot with your
+    // real values from the AdSense dashboard — ads won't serve until then.
+    function AdBanner({ slot }) {
+      const pushed = React.useRef(false);
+      useEffect(() => {
+        if (pushed.current) return;
+        pushed.current = true;
+        try {
+          (window.adsbygoogle = window.adsbygoogle || []).push({});
+        } catch (err) {
+          // AdSense script not loaded (e.g. no publisher ID configured yet) — ignore
+        }
+      }, []);
+      return e("div", { className: "ad-banner" },
+        e("span", { className: "ad-banner-label" }, "Advertisement"),
+        e("ins", {
+          className: "adsbygoogle",
+          style: { display: "block", width: "100%" },
+          "data-ad-client": "ca-pub-XXXXXXXXXXXXXXXX",
+          "data-ad-slot": slot,
+          "data-ad-format": "auto",
+          "data-full-width-responsive": "true"
+        })
+      );
+    }
+
     function FlashcardsApp() {
       const [data, setData] = useState(null);
       const [loaded, setLoaded] = useState(false);
@@ -951,6 +1073,7 @@
       const [returnView, setReturnView] = useState("deck");
 
       const [showNewDeck, setShowNewDeck] = useState(false);
+      const [showLimitModal, setShowLimitModal] = useState(false);
       const [newDeckName, setNewDeckName] = useState("");
       const [editingDeckName, setEditingDeckName] = useState(false);
       const [deckNameDraft, setDeckNameDraft] = useState("");
@@ -980,7 +1103,44 @@
         setSaveError(!ok);
       }, [data, loaded]);
 
+      // Time-as-currency: accrue active (visible, foregrounded) app time.
+      // This balance is what unlocks extra deck slots — no payment involved.
+      const pendingSecondsRef = React.useRef(0);
+      useEffect(() => {
+        if (!loaded) return;
+        const flush = () => {
+          if (pendingSecondsRef.current <= 0) return;
+          const add = pendingSecondsRef.current;
+          pendingSecondsRef.current = 0;
+          setData(d => ({
+            ...d,
+            sessionStats: { ...d.sessionStats, totalActiveSeconds: (d.sessionStats.totalActiveSeconds || 0) + add }
+          }));
+        };
+        const tick = setInterval(() => {
+          if (!document.hidden) {
+            pendingSecondsRef.current += 1;
+            if (pendingSecondsRef.current >= 5) flush();
+          }
+        }, 1000);
+        const onVisibility = () => { if (document.hidden) flush(); };
+        document.addEventListener("visibilitychange", onVisibility);
+        window.addEventListener("beforeunload", flush);
+        return () => {
+          clearInterval(tick);
+          document.removeEventListener("visibilitychange", onVisibility);
+          window.removeEventListener("beforeunload", flush);
+          flush();
+        };
+      }, [loaded]);
+
       const today = todayStr();
+      const totalActiveSeconds = data ? (data.sessionStats.totalActiveSeconds || 0) : 0;
+      const extraDeckSlots = Math.floor(totalActiveSeconds / UNLOCK_INTERVAL_SECONDS);
+      const deckLimit = FREE_DECK_LIMIT + extraDeckSlots;
+      const secondsIntoSlot = totalActiveSeconds % UNLOCK_INTERVAL_SECONDS;
+      const secondsToNextSlot = UNLOCK_INTERVAL_SECONDS - secondsIntoSlot;
+      const nextSlotProgressPct = (secondsIntoSlot / UNLOCK_INTERVAL_SECONDS) * 100;
       const activeDeck = data ? (data.decks.find(d => d.id === activeDeckId) || null) : null;
       const currentCard = activeDeck && queue.length > 0 ? activeDeck.cards.find(c => c.id === queue[sessionIndex]) : null;
       const progress = queue.length > 0 ? sessionIndex / queue.length : 0;
@@ -996,6 +1156,7 @@
         setConfirmDeleteDeck(false);
         setConfirmDeleteCard(null);
         setEditingDeckName(false);
+        setShowLimitModal(false);
       }
 
       function openDeck(deckId) {
@@ -1224,7 +1385,26 @@
               )
             );
           })),
-          showNewDeck ? e("div", { className: "new-deck-form" },
+
+          e(AdBanner, { slot: "1111111111" }),
+
+          e("div", { className: "slots-bar" },
+            e("div", { className: "slots-bar-row" },
+              e("span", null, "Deck slots ", e("span", { className: "slots-count" }, `${decks.length} / ${deckLimit}`)),
+              e("span", null, extraDeckSlots > 0 ? `+${extraDeckSlots} earned` : "")
+            ),
+            e("div", { className: "slots-progress-track" }, e("div", { className: "slots-progress-fill", style: { width: `${nextSlotProgressPct}%` } })),
+            e("div", { className: "slots-bar-hint" }, `Next free slot in ~${Math.max(1, Math.ceil(secondsToNextSlot / 60))} min of app use — your time is the currency here, not money.`)
+          ),
+
+          showLimitModal ? e("div", { className: "limit-panel" },
+            e("div", { className: "limit-panel-icon" }, "🔒"),
+            e("div", { className: "limit-panel-title" }, "Deck limit reached"),
+            e("div", { className: "limit-panel-sub" }, `You've used all ${deckLimit} deck slots. Keep using the app and new slots unlock automatically — nothing to pay.`),
+            e("div", { className: "slots-progress-track" }, e("div", { className: "slots-progress-fill", style: { width: `${nextSlotProgressPct}%` } })),
+            e("div", { className: "limit-panel-label" }, `~${Math.max(1, Math.ceil(secondsToNextSlot / 60))} min of active use until your next slot`),
+            e("button", { className: "btn btn-secondary btn-full", onClick: () => setShowLimitModal(false) }, "Got it")
+          ) : showNewDeck ? e("div", { className: "new-deck-form" },
             e("div", { className: "field-label" }, "Deck name"),
             e("input", {
               className: "text-input", type: "text", autoFocus: true, placeholder: "e.g. Spanish Verbs",
@@ -1235,7 +1415,10 @@
               e("button", { className: "btn btn-secondary", style: { height: 48 }, onClick: () => { setShowNewDeck(false); setNewDeckName(""); } }, "Cancel"),
               e("button", { className: "btn btn-primary", style: { height: 48 }, onClick: createDeck, disabled: !newDeckName.trim() }, "Create")
             )
-          ) : e("button", { className: "btn-new-deck", onClick: () => setShowNewDeck(true) }, "+ New deck")
+          ) : e("button", {
+            className: "btn-new-deck",
+            onClick: () => { if (decks.length >= deckLimit) setShowLimitModal(true); else setShowNewDeck(true); }
+          }, decks.length >= deckLimit ? "🔒 Deck limit reached" : "+ New deck")
         );
       }
 
@@ -1268,6 +1451,8 @@
             e("button", { className: "btn btn-secondary", onClick: openAddCard }, "+ Add card")
           ),
           deckDue === 0 && activeDeck.cards.length > 0 && e("div", { className: "btn-study-note" }, "No cards due today — tap Study to review everything anyway."),
+
+          e(AdBanner, { slot: "2222222222" }),
 
           activeDeck.cards.length > 0 && e(React.Fragment, null,
             e("div", { className: "card-list-section-label" }, "Cards"),
@@ -1380,7 +1565,9 @@
             e("div", { className: "stats-card" }, e("span", { className: "stats-card-num" }, data.sessionStats.longestStreak), e("span", { className: "stats-card-label" }, "Longest streak")),
             e("div", { className: "stats-card" }, e("span", { className: "stats-card-num" }, data.sessionStats.totalSessionsCompleted), e("span", { className: "stats-card-label" }, "Sessions completed")),
             e("div", { className: "stats-card" }, e("span", { className: "stats-card-num" }, data.sessionStats.totalCardsReviewed), e("span", { className: "stats-card-label" }, "Total reviews")),
-            e("div", { className: "stats-card" }, e("span", { className: "stats-card-num" }, totalUniqueCards), e("span", { className: "stats-card-label" }, "Total cards"))
+            e("div", { className: "stats-card" }, e("span", { className: "stats-card-num" }, totalUniqueCards), e("span", { className: "stats-card-label" }, "Total cards")),
+            e("div", { className: "stats-card" }, e("span", { className: "stats-card-num", style: { fontSize: 20 } }, formatDuration(totalActiveSeconds)), e("span", { className: "stats-card-label" }, "Time in app")),
+            e("div", { className: "stats-card" }, e("span", { className: "stats-card-num" }, `+${extraDeckSlots}`), e("span", { className: "stats-card-label" }, "Bonus deck slots earned"))
           ),
           decks.length > 0 && e(React.Fragment, null,
             e("div", { className: "stats-section-title" }, "By deck"),
