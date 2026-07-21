@@ -27,34 +27,197 @@
   try {
     const useState = React.useState;
     const useEffect = React.useEffect;
+    const useMemo = React.useMemo;
+    const e = React.createElement;
+
     let idSeed = 0;
     function makeId(prefix) {
       idSeed += 1;
       return `${prefix}_${Date.now().toString(36)}_${idSeed}`;
     }
+
+    // ---------- Date helpers (local timezone, YYYY-MM-DD strings) ----------
+    function todayStr() {
+      const d = new Date();
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, "0");
+      const day = String(d.getDate()).padStart(2, "0");
+      return `${y}-${m}-${day}`;
+    }
+    function addDays(dateStr, days) {
+      const [y, m, d] = dateStr.split("-").map(Number);
+      const dt = new Date(y, m - 1, d);
+      dt.setDate(dt.getDate() + days);
+      const ny = dt.getFullYear();
+      const nm = String(dt.getMonth() + 1).padStart(2, "0");
+      const nd = String(dt.getDate()).padStart(2, "0");
+      return `${ny}-${nm}-${nd}`;
+    }
+    function formatDisplayDate(dateStr) {
+      if (!dateStr) return "Never";
+      const today = todayStr();
+      if (dateStr === today) return "Today";
+      if (dateStr === addDays(today, -1)) return "Yesterday";
+      const [y, m, d] = dateStr.split("-").map(Number);
+      const dt = new Date(y, m - 1, d);
+      return dt.toLocaleDateString(undefined, { month: "short", day: "numeric", year: y === new Date().getFullYear() ? undefined : "numeric" });
+    }
+
+    // ---------- Card factory ----------
+    function newCard(front, back, today) {
+      return {
+        id: makeId("card"),
+        front,
+        back,
+        interval: 1,
+        easeFactor: 2.5,
+        repetitions: 0,
+        nextReviewDate: today,
+        lastReviewedDate: null,
+        createdDate: today
+      };
+    }
+
+    // ---------- SM-2 inspired spaced repetition algorithm ----------
+    // rating: 1 Again, 2 Hard, 3 Good, 4 Easy, 5 Very Easy
+    function applyRating(card, rating, today) {
+      let { interval, easeFactor, repetitions } = card;
+
+      if (rating === 1) {
+        interval = 1;
+        repetitions = 0;
+        easeFactor = Math.max(1.3, easeFactor - 0.2);
+      } else if (rating === 2) {
+        interval = interval * 1.2;
+        easeFactor = Math.max(1.3, easeFactor - 0.15);
+      } else if (rating === 3) {
+        if (repetitions === 0) interval = 1;
+        else if (repetitions === 1) interval = 3;
+        else interval = interval * easeFactor;
+        repetitions += 1;
+      } else if (rating === 4) {
+        if (repetitions === 0) interval = 4;
+        else if (repetitions === 1) interval = 15;
+        else interval = interval * easeFactor * 1.3;
+        easeFactor = Math.min(2.5, easeFactor + 0.1);
+        repetitions += 1;
+      } else if (rating === 5) {
+        if (repetitions === 0) interval = 7;
+        else if (repetitions === 1) interval = 21;
+        else interval = interval * easeFactor * 1.6;
+        easeFactor = Math.min(2.5, easeFactor + 0.15);
+        repetitions += 1;
+      }
+
+      easeFactor = Math.round(easeFactor * 100) / 100;
+      interval = Math.round(interval * 100) / 100;
+
+      const nextReviewDate = rating === 1 ? today : addDays(today, Math.max(1, Math.round(interval)));
+
+      return {
+        ...card,
+        interval,
+        easeFactor,
+        repetitions,
+        nextReviewDate,
+        lastReviewedDate: today
+      };
+    }
+
+    function dueCards(deck, today) {
+      return deck.cards.filter(c => c.nextReviewDate <= today);
+    }
+
+    // ---------- Persistence ----------
+    const STORAGE_KEY = "flashcardAppData";
+
+    function loadData() {
+      const today = todayStr();
+      const fallback = {
+        decks: [],
+        sessionStats: {
+          lastStudyDate: null,
+          streak: 0,
+          longestStreak: 0,
+          totalSessionsCompleted: 0,
+          totalCardsReviewed: 0,
+          todayLog: { date: today, entries: [] }
+        }
+      };
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (!raw) return fallback;
+        const parsed = JSON.parse(raw);
+        if (!parsed || typeof parsed !== "object") return fallback;
+        const decks = Array.isArray(parsed.decks) ? parsed.decks : [];
+        const stats = parsed.sessionStats && typeof parsed.sessionStats === "object" ? parsed.sessionStats : {};
+        let todayLog = stats.todayLog && typeof stats.todayLog === "object" ? stats.todayLog : { date: today, entries: [] };
+        if (todayLog.date !== today) todayLog = { date: today, entries: [] };
+        return {
+          decks: decks.map(dk => ({
+            id: dk.id || makeId("deck"),
+            name: typeof dk.name === "string" ? dk.name : "Untitled deck",
+            createdAt: dk.createdAt || new Date().toISOString(),
+            lastStudiedDate: dk.lastStudiedDate || null,
+            cards: Array.isArray(dk.cards) ? dk.cards.map(c => ({
+              id: c.id || makeId("card"),
+              front: typeof c.front === "string" ? c.front : "",
+              back: typeof c.back === "string" ? c.back : "",
+              interval: typeof c.interval === "number" ? c.interval : 1,
+              easeFactor: typeof c.easeFactor === "number" ? c.easeFactor : 2.5,
+              repetitions: typeof c.repetitions === "number" ? c.repetitions : 0,
+              nextReviewDate: c.nextReviewDate || today,
+              lastReviewedDate: c.lastReviewedDate || null,
+              createdDate: c.createdDate || today
+            })) : []
+          })),
+          sessionStats: {
+            lastStudyDate: stats.lastStudyDate || null,
+            streak: typeof stats.streak === "number" ? stats.streak : 0,
+            longestStreak: typeof stats.longestStreak === "number" ? stats.longestStreak : 0,
+            totalSessionsCompleted: typeof stats.totalSessionsCompleted === "number" ? stats.totalSessionsCompleted : 0,
+            totalCardsReviewed: typeof stats.totalCardsReviewed === "number" ? stats.totalCardsReviewed : 0,
+            todayLog
+          }
+        };
+      } catch (err) {
+        return fallback;
+      }
+    }
+
+    function saveData(data) {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+        return true;
+      } catch (err) {
+        console.error("Could not save flashcard data", err);
+        return false;
+      }
+    }
+
     const styles = `
       @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
-    
+
       * { box-sizing: border-box; margin: 0; padding: 0; }
-    
+
       body {
         background: #0B0B14;
         font-family: 'Inter', -apple-system, sans-serif;
         min-height: 100vh;
         color: #F0F0F8;
       }
-    
+
       button, input, textarea { font-family: inherit; }
-    
+
       button:focus-visible, textarea:focus-visible, input:focus-visible {
         outline: 2px solid #7C6FFF;
         outline-offset: 2px;
       }
-    
+
       @media (prefers-reduced-motion: reduce) {
         * { transition: none !important; animation: none !important; }
       }
-    
+
       .app {
         max-width: 390px;
         margin: 0 auto;
@@ -63,8 +226,9 @@
         flex-direction: column;
         padding: 0 20px;
         padding-bottom: 32px;
+        padding-top: env(safe-area-inset-top);
       }
-    
+
       .loading-screen {
         flex: 1;
         display: flex;
@@ -74,23 +238,34 @@
         font-size: 14px;
         font-weight: 600;
       }
-    
+
+      .storage-warning {
+        background: #3A2020;
+        border: 1px solid #F87171;
+        color: #FCA5A5;
+        border-radius: 10px;
+        padding: 10px 14px;
+        font-size: 12px;
+        font-weight: 600;
+        margin-bottom: 12px;
+      }
+
       /* Header */
       .header {
-        padding: 52px 0 16px;
+        padding: 28px 0 16px;
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 12px;
       }
-    
+
       .header-left {
         display: flex;
         align-items: center;
         gap: 4px;
         min-width: 0;
       }
-    
+
       .btn-back {
         background: none;
         border: none;
@@ -103,7 +278,7 @@
         -webkit-tap-highlight-color: transparent;
         flex-shrink: 0;
       }
-    
+
       .header-title {
         font-size: 17px;
         font-weight: 700;
@@ -112,30 +287,51 @@
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-    
+
+      .header-right {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-shrink: 0;
+      }
+
       .header-count {
         font-size: 13px;
         font-weight: 600;
         color: #6B6B8A;
-        flex-shrink: 0;
       }
-    
+
+      .icon-btn {
+        background: #1C1C2E;
+        border: 1px solid #2A2A40;
+        color: #B0B0CC;
+        width: 34px;
+        height: 34px;
+        border-radius: 10px;
+        font-size: 15px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        -webkit-tap-highlight-color: transparent;
+      }
+
       /* Progress bar */
       .progress-bar-track {
         height: 3px;
         background: #1C1C2E;
         border-radius: 99px;
-        margin-bottom: 36px;
+        margin-bottom: 28px;
         overflow: hidden;
       }
-    
+
       .progress-bar-fill {
         height: 100%;
         background: linear-gradient(90deg, #7C6FFF, #BF7FFF);
         border-radius: 99px;
         transition: width 0.4s cubic-bezier(0.4,0,0.2,1);
       }
-    
+
       /* Home screen / deck list */
       .home-screen {
         flex: 1;
@@ -144,7 +340,36 @@
         gap: 16px;
         padding-top: 4px;
       }
-    
+
+      .home-stats-row {
+        display: flex;
+        gap: 10px;
+      }
+
+      .mini-stat {
+        flex: 1;
+        background: #1C1C2E;
+        border: 1px solid #2A2A40;
+        border-radius: 12px;
+        padding: 12px 14px;
+      }
+
+      .mini-stat-num {
+        font-size: 20px;
+        font-weight: 700;
+        display: block;
+      }
+
+      .mini-stat-label {
+        font-size: 11px;
+        font-weight: 600;
+        color: #6B6B8A;
+        text-transform: uppercase;
+        letter-spacing: 0.06em;
+        margin-top: 2px;
+        display: block;
+      }
+
       .deck-list {
         display: flex;
         flex-direction: column;
@@ -152,7 +377,7 @@
         flex: 1;
         overflow-y: auto;
       }
-    
+
       .deck-row {
         background: #1C1C2E;
         border: 1px solid #2A2A40;
@@ -167,9 +392,9 @@
         transition: border-color 0.15s;
       }
       .deck-row:active { border-color: #7C6FFF; }
-    
-      .deck-row-main { min-width: 0; }
-    
+
+      .deck-row-main { min-width: 0; flex: 1; }
+
       .deck-row-name {
         font-size: 16px;
         font-weight: 600;
@@ -177,13 +402,25 @@
         text-overflow: ellipsis;
         white-space: nowrap;
       }
-    
+
       .deck-row-meta {
         font-size: 13px;
         color: #6B6B8A;
         margin-top: 3px;
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
       }
-    
+
+      .due-badge {
+        background: rgba(124,111,255,0.18);
+        color: #BF9FFF;
+        border-radius: 99px;
+        padding: 1px 8px;
+        font-weight: 700;
+        font-size: 12px;
+      }
+
       .new-deck-form {
         background: #1C1C2E;
         border: 1px solid #2A2A40;
@@ -193,7 +430,7 @@
         flex-direction: column;
         gap: 10px;
       }
-    
+
       .text-input {
         background: #14141F;
         border: 1px solid #2A2A40;
@@ -206,12 +443,12 @@
       }
       .text-input:focus { border-color: #7C6FFF; }
       .text-input::placeholder { color: #3A3A55; }
-    
-      .new-deck-actions {
+
+      .new-deck-actions, .inline-form-actions {
         display: flex;
         gap: 10px;
       }
-    
+
       .btn-new-deck {
         width: 100%;
         height: 52px;
@@ -226,7 +463,87 @@
         transition: border-color 0.15s, color 0.15s;
       }
       .btn-new-deck:active { border-color: #7C6FFF; color: #BF7FFF; }
-    
+
+      /* Deck detail */
+      .deck-detail {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+        padding-top: 4px;
+      }
+
+      .deck-stats-row {
+        display: flex;
+        gap: 10px;
+      }
+
+      .deck-actions {
+        display: flex;
+        gap: 12px;
+      }
+
+      .btn-study-note {
+        font-size: 12px;
+        color: #6B6B8A;
+        text-align: center;
+        margin-top: -6px;
+      }
+
+      .card-list-section-label {
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #6B6B8A;
+        margin-top: 4px;
+      }
+
+      .card-row {
+        background: #1C1C2E;
+        border: 1px solid #2A2A40;
+        border-radius: 12px;
+        padding: 14px 16px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      .card-row-text {
+        font-size: 14px;
+        color: #E0E0F0;
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .card-row-due {
+        font-size: 11px;
+        color: #6B6B8A;
+        flex-shrink: 0;
+      }
+
+      .deck-danger-zone {
+        margin-top: 12px;
+        display: flex;
+        justify-content: center;
+      }
+
+      .btn-text-danger {
+        background: none;
+        border: none;
+        color: #F87171;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 8px 12px;
+      }
+      .btn-text-danger.confirming { text-decoration: underline; }
+
       /* Card flip */
       .card-scene {
         perspective: 900px;
@@ -234,11 +551,12 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        margin-bottom: 32px;
+        margin-bottom: 24px;
         cursor: pointer;
         -webkit-tap-highlight-color: transparent;
+        min-height: 220px;
       }
-    
+
       .card-3d {
         width: 100%;
         max-width: 340px;
@@ -247,11 +565,11 @@
         transform-style: preserve-3d;
         transition: transform 0.55s cubic-bezier(0.4, 0, 0.2, 1);
       }
-    
+
       .card-3d.flipped {
         transform: rotateY(180deg);
       }
-    
+
       .card-face {
         position: absolute;
         inset: 0;
@@ -264,18 +582,19 @@
         justify-content: center;
         padding: 28px;
         text-align: center;
+        overflow-y: auto;
       }
-    
+
       .card-front {
         background: #1C1C2E;
         border: 1px solid #2A2A40;
       }
-    
+
       .card-back {
         background: linear-gradient(145deg, #5B4FD8, #8B5CF6);
         transform: rotateY(180deg);
       }
-    
+
       .card-label {
         font-size: 11px;
         font-weight: 700;
@@ -284,35 +603,105 @@
         margin-bottom: 16px;
         opacity: 0.5;
       }
-    
+
       .card-text {
-        font-size: 20px;
+        font-size: 24px;
         font-weight: 600;
         line-height: 1.4;
         color: #F0F0F8;
       }
-    
+
       .card-back .card-text {
         color: #fff;
       }
-    
+
       .card-tap-hint {
         margin-top: 16px;
         font-size: 12px;
         opacity: 0.4;
         font-weight: 500;
       }
-    
-      /* Action buttons */
-      .actions {
-        display: flex;
-        gap: 14px;
-        margin-bottom: 28px;
+
+      /* Rating buttons (5-option spaced repetition) */
+      .rating-grid {
+        display: grid;
+        grid-template-columns: repeat(5, 1fr);
+        gap: 8px;
+        margin-bottom: 20px;
       }
-    
+
+      .rating-btn {
+        min-height: 52px;
+        border: none;
+        border-radius: 12px;
+        color: #fff;
+        font-size: 11px;
+        font-weight: 700;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        padding: 6px 2px;
+        transition: transform 0.1s, opacity 0.15s;
+      }
+      .rating-btn:active { transform: scale(0.94); opacity: 0.85; }
+      .rating-btn .rating-sub {
+        font-size: 9px;
+        font-weight: 600;
+        opacity: 0.85;
+      }
+
+      .rating-again { background: #EF4444; }
+      .rating-hard { background: #F97316; }
+      .rating-good { background: #EAB308; color: #1F2937; }
+      .rating-good .rating-sub { color: #1F2937; opacity: 0.7; }
+      .rating-easy { background: #22C55E; }
+      .rating-veasy { background: #3B82F6; }
+
+      .reveal-row {
+        display: flex;
+        margin-bottom: 20px;
+      }
+
+      .btn-reveal {
+        width: 100%;
+        height: 56px;
+        border: none;
+        border-radius: 14px;
+        background: linear-gradient(135deg, #7C6FFF, #BF7FFF);
+        color: #fff;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      /* Bottom row */
+      .bottom-row {
+        display: flex;
+        justify-content: center;
+        gap: 20px;
+      }
+
+      .btn-ghost {
+        background: none;
+        border: none;
+        color: #6B6B8A;
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        padding: 8px 12px;
+        border-radius: 8px;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      /* Generic buttons */
       .btn {
         flex: 1;
-        height: 56px;
+        height: 52px;
         border: none;
         border-radius: 14px;
         font-size: 15px;
@@ -325,51 +714,24 @@
         justify-content: center;
         gap: 8px;
       }
-    
       .btn:active { opacity: 0.75; transform: scale(0.97); }
       .btn:disabled { opacity: 0.35; cursor: default; transform: none; }
-    
-      .btn-skip {
+
+      .btn-secondary {
         background: #1C1C2E;
-        color: #6B6B8A;
+        color: #F0F0F8;
         border: 1px solid #2A2A40;
       }
-    
-      .btn-known {
-        background: #10B981;
-        color: #fff;
-      }
-    
-      .btn-unknown {
-        background: #1C1C2E;
-        color: #F87171;
-        border: 1px solid #2A2A40;
-      }
-    
-      .btn-next {
+
+      .btn-primary {
         background: linear-gradient(135deg, #7C6FFF, #BF7FFF);
         color: #fff;
       }
-    
-      /* Bottom row */
-      .bottom-row {
-        display: flex;
-        justify-content: center;
-        gap: 20px;
+
+      .btn-full {
+        width: 100%;
       }
-    
-      .btn-ghost {
-        background: none;
-        border: none;
-        color: #6B6B8A;
-        font-size: 13px;
-        font-weight: 600;
-        cursor: pointer;
-        padding: 8px 12px;
-        border-radius: 8px;
-        -webkit-tap-highlight-color: transparent;
-      }
-    
+
       /* Results screen */
       .results {
         flex: 1;
@@ -378,88 +740,77 @@
         align-items: center;
         justify-content: center;
         text-align: center;
-        gap: 24px;
+        gap: 22px;
         padding-top: 20px;
       }
-    
+
       .results-emoji {
-        font-size: 64px;
+        font-size: 60px;
         line-height: 1;
       }
-    
+
       .results-title {
-        font-size: 26px;
+        font-size: 24px;
         font-weight: 700;
       }
-    
+
       .results-sub {
-        font-size: 15px;
+        font-size: 14px;
         color: #6B6B8A;
         line-height: 1.5;
       }
-    
+
       .results-stats {
         display: flex;
-        gap: 20px;
+        gap: 14px;
+        flex-wrap: wrap;
+        justify-content: center;
       }
-    
+
       .stat-box {
         background: #1C1C2E;
         border-radius: 16px;
-        padding: 20px 28px;
-        min-width: 120px;
+        padding: 16px 22px;
+        min-width: 96px;
         border: 1px solid #2A2A40;
       }
-    
+
       .stat-num {
-        font-size: 32px;
+        font-size: 28px;
         font-weight: 700;
         display: block;
       }
-    
+
       .stat-label {
-        font-size: 12px;
+        font-size: 11px;
         font-weight: 600;
-        letter-spacing: 0.08em;
+        letter-spacing: 0.06em;
         text-transform: uppercase;
         color: #6B6B8A;
         margin-top: 4px;
         display: block;
       }
-    
-      .stat-known .stat-num { color: #10B981; }
-      .stat-unknown .stat-num { color: #F87171; }
-    
-      .btn-restart {
+
+      .stat-accuracy .stat-num { color: #22C55E; }
+      .stat-streak .stat-num { color: #F97316; }
+
+      .results-actions {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
         width: 100%;
         max-width: 280px;
-        height: 56px;
-        border: none;
-        border-radius: 14px;
-        background: linear-gradient(135deg, #7C6FFF, #BF7FFF);
-        color: #fff;
-        font-size: 16px;
-        font-weight: 600;
-        cursor: pointer;
-        -webkit-tap-highlight-color: transparent;
-        transition: opacity 0.15s, transform 0.1s;
       }
-      .btn-restart:active { opacity: 0.75; transform: scale(0.97); }
-    
-      .add-screen .btn-restart {
-        max-width: none;
-        margin: 0;
-      }
-    
-      /* Add card screen */
-      .add-screen {
+
+      /* Add / edit card screen */
+      .form-screen {
         flex: 1;
         display: flex;
         flex-direction: column;
         padding-top: 8px;
         gap: 16px;
       }
-    
+
       .field-label {
         font-size: 12px;
         font-weight: 700;
@@ -468,12 +819,12 @@
         color: #6B6B8A;
         margin-bottom: 8px;
       }
-    
+
       .field-group {
         display: flex;
         flex-direction: column;
       }
-    
+
       textarea {
         background: #1C1C2E;
         border: 1px solid #2A2A40;
@@ -488,27 +839,7 @@
       }
       textarea:focus { border-color: #7C6FFF; }
       textarea::placeholder { color: #3A3A55; }
-    
-      .deck-item {
-        background: #1C1C2E;
-        border: 1px solid #2A2A40;
-        border-radius: 12px;
-        padding: 14px 16px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 12px;
-      }
-    
-      .deck-item-text {
-        font-size: 14px;
-        color: #B0B0CC;
-        flex: 1;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-      }
-    
+
       .btn-delete {
         background: none;
         border: none;
@@ -521,376 +852,555 @@
         flex-shrink: 0;
         line-height: 1;
       }
-    
+
       .btn-delete.confirming {
         background: #F87171;
         color: #fff;
       }
+
+      /* Stats page */
+      .stats-page {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 18px;
+        padding-top: 4px;
+      }
+
+      .stats-section-title {
+        font-size: 12px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: #6B6B8A;
+      }
+
+      .stats-grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+      }
+
+      .stats-card {
+        background: #1C1C2E;
+        border: 1px solid #2A2A40;
+        border-radius: 14px;
+        padding: 16px;
+      }
+
+      .stats-card-num {
+        font-size: 26px;
+        font-weight: 700;
+        display: block;
+      }
+
+      .stats-card-label {
+        font-size: 12px;
+        color: #6B6B8A;
+        margin-top: 4px;
+        display: block;
+      }
+
+      .deck-stat-row {
+        background: #1C1C2E;
+        border: 1px solid #2A2A40;
+        border-radius: 12px;
+        padding: 12px 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .deck-stat-name {
+        font-size: 14px;
+        font-weight: 600;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .deck-stat-ease {
+        font-size: 12px;
+        color: #6B6B8A;
+        flex-shrink: 0;
+      }
+
+      .empty-state {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        gap: 12px;
+        padding: 20px;
+      }
+      .empty-emoji { font-size: 48px; }
+      .empty-title { font-size: 17px; font-weight: 700; }
+      .empty-sub { font-size: 13px; color: #6B6B8A; line-height: 1.5; }
     `;
+
     function FlashcardsApp() {
-      const [decks, setDecks] = useState([]);
+      const [data, setData] = useState(null);
       const [loaded, setLoaded] = useState(false);
+      const [saveError, setSaveError] = useState(false);
+
+      const [view, setView] = useState("home"); // home | deck | study | results | form | stats
       const [activeDeckId, setActiveDeckId] = useState(null);
-      const [view, setView] = useState("home"); // home | study | add | results
-      const [index, setIndex] = useState(0);
-      const [flipped, setFlipped] = useState(false);
-      const [front, setFront] = useState("");
-      const [back, setBack] = useState("");
+      const [returnView, setReturnView] = useState("deck");
+
       const [showNewDeck, setShowNewDeck] = useState(false);
       const [newDeckName, setNewDeckName] = useState("");
-      const [confirmDeleteId, setConfirmDeleteId] = useState(null);
-    
-      // Load saved decks once on mount
+      const [editingDeckName, setEditingDeckName] = useState(false);
+      const [deckNameDraft, setDeckNameDraft] = useState("");
+      const [confirmDeleteDeck, setConfirmDeleteDeck] = useState(false);
+      const [confirmDeleteCard, setConfirmDeleteCard] = useState(null);
+
+      const [formFront, setFormFront] = useState("");
+      const [formBack, setFormBack] = useState("");
+      const [editingCardId, setEditingCardId] = useState(null);
+
+      const [queue, setQueue] = useState([]);
+      const [sessionIndex, setSessionIndex] = useState(0);
+      const [flipped, setFlipped] = useState(false);
+      const [sessionEntries, setSessionEntries] = useState([]); // ratings this session
+
+      // Load once on mount
       useEffect(() => {
-        let cancelled = false;
-        (async () => {
-          try {
-            const raw = localStorage.getItem("flashcards:decks");
-            if (!cancelled && raw) {
-              const parsed = JSON.parse(raw);
-              if (Array.isArray(parsed)) setDecks(parsed);
-            }
-          } catch (err) {
-            // nothing saved yet — start fresh
-          } finally {
-            if (!cancelled) setLoaded(true);
-          }
-        })();
-        return () => {
-          cancelled = true;
-        };
+        const loadedData = loadData();
+        setData(loadedData);
+        setLoaded(true);
       }, []);
-    
-      // Persist decks whenever they change
+
+      // Persist on every change
       useEffect(() => {
-        if (!loaded) return;
-        (async () => {
-          try {
-            localStorage.setItem("flashcards:decks", JSON.stringify(decks));
-          } catch (err) {
-            console.error("Could not save decks", err);
-          }
-        })();
-      }, [decks, loaded]);
-      const activeDeck = decks.find(d => d.id === activeDeckId) || null;
-      const cards = activeDeck ? activeDeck.cards : [];
-      const current = cards[index];
-      const known = cards.filter(c => c.known === true).length;
-      const unknown = cards.filter(c => c.known === false).length;
-      const progress = cards.length > 0 ? index / cards.length : 0;
+        if (!loaded || !data) return;
+        const ok = saveData(data);
+        setSaveError(!ok);
+      }, [data, loaded]);
+
+      const today = todayStr();
+      const activeDeck = data ? (data.decks.find(d => d.id === activeDeckId) || null) : null;
+      const currentCard = activeDeck && queue.length > 0 ? activeDeck.cards.find(c => c.id === queue[sessionIndex]) : null;
+      const progress = queue.length > 0 ? sessionIndex / queue.length : 0;
+
+      function updateDecks(fn) {
+        setData(d => ({ ...d, decks: fn(d.decks) }));
+      }
+
       function goHome() {
         setView("home");
         setActiveDeckId(null);
         setFlipped(false);
-        setConfirmDeleteId(null);
+        setConfirmDeleteDeck(false);
+        setConfirmDeleteCard(null);
+        setEditingDeckName(false);
       }
-      function openDeck(deck) {
-        setActiveDeckId(deck.id);
-        setIndex(0);
-        setFlipped(false);
-        setFront("");
-        setBack("");
-        setView(deck.cards.length === 0 ? "add" : "study");
+
+      function openDeck(deckId) {
+        setActiveDeckId(deckId);
+        setConfirmDeleteDeck(false);
+        setConfirmDeleteCard(null);
+        setEditingDeckName(false);
+        setView("deck");
       }
+
+      // ---- Deck CRUD ----
       function createDeck() {
         const name = newDeckName.trim();
         if (!name) return;
-        const deck = {
-          id: makeId("deck"),
-          name,
-          cards: []
-        };
-        setDecks(d => [...d, deck]);
+        const deck = { id: makeId("deck"), name, createdAt: new Date().toISOString(), lastStudiedDate: null, cards: [] };
+        updateDecks(decks => [...decks, deck]);
         setNewDeckName("");
         setShowNewDeck(false);
-        openDeck(deck);
+        openDeck(deck.id);
       }
-      function handleDeleteDeckTap(deck) {
-        if (confirmDeleteId === deck.id) {
-          setDecks(d => d.filter(x => x.id !== deck.id));
-          if (activeDeckId === deck.id) goHome();
-          setConfirmDeleteId(null);
+
+      function saveDeckName() {
+        const name = deckNameDraft.trim();
+        if (!name) { setEditingDeckName(false); return; }
+        updateDecks(decks => decks.map(dk => dk.id === activeDeckId ? { ...dk, name } : dk));
+        setEditingDeckName(false);
+      }
+
+      function deleteDeck(deckId) {
+        updateDecks(decks => decks.filter(dk => dk.id !== deckId));
+        goHome();
+      }
+
+      // ---- Card CRUD ----
+      function openAddCard() {
+        setEditingCardId(null);
+        setFormFront("");
+        setFormBack("");
+        setReturnView("deck");
+        setView("form");
+      }
+
+      function openEditCard(card) {
+        setEditingCardId(card.id);
+        setFormFront(card.front);
+        setFormBack(card.back);
+        setReturnView("deck");
+        setView("form");
+      }
+
+      function saveCardForm(addAnother) {
+        const f = formFront.trim(), b = formBack.trim();
+        if (!f || !b) return;
+        if (editingCardId) {
+          updateDecks(decks => decks.map(dk => dk.id !== activeDeckId ? dk : {
+            ...dk,
+            cards: dk.cards.map(c => c.id === editingCardId ? { ...c, front: f, back: b } : c)
+          }));
         } else {
-          setConfirmDeleteId(deck.id);
-          setTimeout(() => {
-            setConfirmDeleteId(curr => curr === deck.id ? null : curr);
-          }, 3000);
+          updateDecks(decks => decks.map(dk => dk.id !== activeDeckId ? dk : {
+            ...dk,
+            cards: [...dk.cards, newCard(f, b, today)]
+          }));
+        }
+        if (addAnother && !editingCardId) {
+          setFormFront("");
+          setFormBack("");
+        } else {
+          setEditingCardId(null);
+          setFormFront("");
+          setFormBack("");
+          setView(returnView);
         }
       }
-      function flip() {
-        setFlipped(f => !f);
-      }
-      function advance() {
-        setFlipped(false);
-        const isLast = index + 1 >= cards.length;
-        setTimeout(() => {
-          if (isLast) {
-            setView("results");
-          } else {
-            setIndex(i => i + 1);
-          }
-        }, 100);
-      }
-      function mark(val) {
-        setDecks(d => d.map(dk => dk.id !== activeDeckId ? dk : {
-          ...dk,
-          cards: dk.cards.map((c, i) => i === index ? {
-            ...c,
-            known: val
-          } : c)
-        }));
-        advance();
-      }
-      function skip() {
-        advance();
-      }
-      function restart() {
-        setDecks(d => d.map(dk => dk.id !== activeDeckId ? dk : {
-          ...dk,
-          cards: dk.cards.map(c => ({
-            ...c,
-            known: null
-          }))
-        }));
-        setIndex(0);
-        setFlipped(false);
-        setView("study");
-      }
-      function addCard() {
-        const f = front.trim(),
-          b = back.trim();
-        if (!f || !b) return;
-        setDecks(d => d.map(dk => dk.id !== activeDeckId ? dk : {
-          ...dk,
-          cards: [...dk.cards, {
-            id: makeId("card"),
-            front: f,
-            back: b,
-            known: null
-          }]
-        }));
-        setFront("");
-        setBack("");
-      }
+
       function deleteCard(cardId) {
-        setDecks(d => d.map(dk => dk.id !== activeDeckId ? dk : {
+        updateDecks(decks => decks.map(dk => dk.id !== activeDeckId ? dk : {
           ...dk,
           cards: dk.cards.filter(c => c.id !== cardId)
         }));
+        setConfirmDeleteCard(null);
       }
-      if (!loaded) {
-        return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("style", null, styles), /*#__PURE__*/React.createElement("div", {
-          className: "app"
-        }, /*#__PURE__*/React.createElement("div", {
-          className: "loading-screen"
-        }, "Loading your decks…")));
+
+      // ---- Study session ----
+      function startStudy(reviewAll) {
+        if (!activeDeck) return;
+        const pool = reviewAll ? activeDeck.cards : dueCards(activeDeck, today);
+        if (pool.length === 0) return;
+        setQueue(pool.map(c => c.id));
+        setSessionIndex(0);
+        setSessionEntries([]);
+        setFlipped(false);
+        setView("study");
       }
-      return /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("style", null, styles), /*#__PURE__*/React.createElement("div", {
-        className: "app"
-      }, /*#__PURE__*/React.createElement("div", {
-        className: "header"
-      }, /*#__PURE__*/React.createElement("div", {
-        className: "header-left"
-      }, view !== "home" && /*#__PURE__*/React.createElement("button", {
-        className: "btn-back",
-        onClick: goHome,
-        "aria-label": "Back to decks"
-      }, "‹"), /*#__PURE__*/React.createElement("span", {
-        className: "header-title"
-      }, view === "home" ? "My Decks" : activeDeck ? activeDeck.name : "")), /*#__PURE__*/React.createElement("span", {
-        className: "header-count"
-      }, view === "home" && `${decks.length} deck${decks.length !== 1 ? "s" : ""}`, view === "study" && cards.length > 0 && `${index + 1} / ${cards.length}`, view === "add" && `${cards.length} card${cards.length !== 1 ? "s" : ""}`)), view === "study" && cards.length > 0 && /*#__PURE__*/React.createElement("div", {
-        className: "progress-bar-track"
-      }, /*#__PURE__*/React.createElement("div", {
-        className: "progress-bar-fill",
-        style: {
-          width: `${progress * 100}%`
-        }
-      })), view === "home" && /*#__PURE__*/React.createElement("div", {
-        className: "home-screen"
-      }, decks.length === 0 && /*#__PURE__*/React.createElement("div", {
-        className: "results"
-      }, /*#__PURE__*/React.createElement("div", {
-        className: "results-emoji"
-      }, "🗂️"), /*#__PURE__*/React.createElement("div", {
-        className: "results-title"
-      }, "Create your first deck"), /*#__PURE__*/React.createElement("div", {
-        className: "results-sub"
-      }, "Decks keep topics separate — like \"Spanish Verbs\" or \"Biology Ch. 3\".")), decks.length > 0 && /*#__PURE__*/React.createElement("div", {
-        className: "deck-list"
-      }, decks.map(deck => /*#__PURE__*/React.createElement("div", {
-        className: "deck-row",
-        key: deck.id,
-        onClick: () => openDeck(deck)
-      }, /*#__PURE__*/React.createElement("div", {
-        className: "deck-row-main"
-      }, /*#__PURE__*/React.createElement("div", {
-        className: "deck-row-name"
-      }, deck.name), /*#__PURE__*/React.createElement("div", {
-        className: "deck-row-meta"
-      }, deck.cards.length, " card", deck.cards.length !== 1 ? "s" : "")), /*#__PURE__*/React.createElement("button", {
-        className: `btn-delete${confirmDeleteId === deck.id ? " confirming" : ""}`,
-        onClick: e => {
-          e.stopPropagation();
-          handleDeleteDeckTap(deck);
-        },
-        "aria-label": confirmDeleteId === deck.id ? `Confirm delete ${deck.name}` : `Delete ${deck.name}`
-      }, confirmDeleteId === deck.id ? "✓" : "×")))), showNewDeck ? /*#__PURE__*/React.createElement("div", {
-        className: "new-deck-form"
-      }, /*#__PURE__*/React.createElement("div", {
-        className: "field-label"
-      }, "Deck name"), /*#__PURE__*/React.createElement("input", {
-        className: "text-input",
-        type: "text",
-        autoFocus: true,
-        placeholder: "e.g. Spanish Verbs",
-        value: newDeckName,
-        onChange: e => setNewDeckName(e.target.value),
-        onKeyDown: e => {
-          if (e.key === "Enter") createDeck();
-        }
-      }), /*#__PURE__*/React.createElement("div", {
-        className: "new-deck-actions"
-      }, /*#__PURE__*/React.createElement("button", {
-        className: "btn btn-skip",
-        style: {
-          height: 48
-        },
-        onClick: () => {
-          setShowNewDeck(false);
-          setNewDeckName("");
-        }
-      }, "Cancel"), /*#__PURE__*/React.createElement("button", {
-        className: "btn btn-next",
-        style: {
-          height: 48
-        },
-        onClick: createDeck,
-        disabled: !newDeckName.trim()
-      }, "Create"))) : /*#__PURE__*/React.createElement("button", {
-        className: "btn-new-deck",
-        onClick: () => setShowNewDeck(true)
-      }, "+ New deck")), view === "study" && activeDeck && cards.length > 0 && current && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
-        className: "card-scene",
-        onClick: flip,
-        role: "button",
-        "aria-label": "Flip card"
-      }, /*#__PURE__*/React.createElement("div", {
-        className: `card-3d${flipped ? " flipped" : ""}`
-      }, /*#__PURE__*/React.createElement("div", {
-        className: "card-face card-front"
-      }, /*#__PURE__*/React.createElement("span", {
-        className: "card-label"
-      }, "Question"), /*#__PURE__*/React.createElement("span", {
-        className: "card-text"
-      }, current.front), /*#__PURE__*/React.createElement("span", {
-        className: "card-tap-hint"
-      }, "Tap to reveal")), /*#__PURE__*/React.createElement("div", {
-        className: "card-face card-back"
-      }, /*#__PURE__*/React.createElement("span", {
-        className: "card-label"
-      }, "Answer"), /*#__PURE__*/React.createElement("span", {
-        className: "card-text"
-      }, current.back)))), flipped ? /*#__PURE__*/React.createElement("div", {
-        className: "actions"
-      }, /*#__PURE__*/React.createElement("button", {
-        className: "btn btn-unknown",
-        onClick: () => mark(false)
-      }, "✕ Still learning"), /*#__PURE__*/React.createElement("button", {
-        className: "btn btn-known",
-        onClick: () => mark(true)
-      }, "✓ Got it")) : /*#__PURE__*/React.createElement("div", {
-        className: "actions"
-      }, /*#__PURE__*/React.createElement("button", {
-        className: "btn btn-skip",
-        onClick: skip
-      }, "Skip →"), /*#__PURE__*/React.createElement("button", {
-        className: "btn btn-next",
-        onClick: flip
-      }, "Reveal answer")), /*#__PURE__*/React.createElement("div", {
-        className: "bottom-row"
-      }, /*#__PURE__*/React.createElement("button", {
-        className: "btn-ghost",
-        onClick: () => setView("add")
-      }, "Manage deck"), /*#__PURE__*/React.createElement("button", {
-        className: "btn-ghost",
-        onClick: restart
-      }, "Restart"))), view === "results" && activeDeck && /*#__PURE__*/React.createElement("div", {
-        className: "results"
-      }, /*#__PURE__*/React.createElement("div", {
-        className: "results-emoji"
-      }, known >= cards.length * 0.8 ? "🎉" : known >= cards.length * 0.5 ? "👍" : "💪"), /*#__PURE__*/React.createElement("div", {
-        className: "results-title"
-      }, known >= cards.length * 0.8 ? "Great work!" : known >= cards.length * 0.5 ? "Good effort!" : "Keep practising!"), /*#__PURE__*/React.createElement("div", {
-        className: "results-sub"
-      }, "You got through all ", cards.length, " cards in ", activeDeck.name, "."), /*#__PURE__*/React.createElement("div", {
-        className: "results-stats"
-      }, /*#__PURE__*/React.createElement("div", {
-        className: "stat-box stat-known"
-      }, /*#__PURE__*/React.createElement("span", {
-        className: "stat-num"
-      }, known), /*#__PURE__*/React.createElement("span", {
-        className: "stat-label"
-      }, "Known")), /*#__PURE__*/React.createElement("div", {
-        className: "stat-box stat-unknown"
-      }, /*#__PURE__*/React.createElement("span", {
-        className: "stat-num"
-      }, unknown), /*#__PURE__*/React.createElement("span", {
-        className: "stat-label"
-      }, "Learning"))), /*#__PURE__*/React.createElement("button", {
-        className: "btn-restart",
-        onClick: restart
-      }, "Study again"), /*#__PURE__*/React.createElement("button", {
-        className: "btn-ghost",
-        onClick: () => setView("add")
-      }, "Manage deck")), view === "add" && activeDeck && /*#__PURE__*/React.createElement("div", {
-        className: "add-screen"
-      }, /*#__PURE__*/React.createElement("div", {
-        className: "field-group"
-      }, /*#__PURE__*/React.createElement("div", {
-        className: "field-label"
-      }, "Question (front)"), /*#__PURE__*/React.createElement("textarea", {
-        rows: 3,
-        placeholder: "e.g. What is the capital of France?",
-        value: front,
-        onChange: e => setFront(e.target.value)
-      })), /*#__PURE__*/React.createElement("div", {
-        className: "field-group"
-      }, /*#__PURE__*/React.createElement("div", {
-        className: "field-label"
-      }, "Answer (back)"), /*#__PURE__*/React.createElement("textarea", {
-        rows: 3,
-        placeholder: "e.g. Paris",
-        value: back,
-        onChange: e => setBack(e.target.value)
-      })), /*#__PURE__*/React.createElement("button", {
-        className: "btn btn-next",
-        style: {
-          height: 48
-        },
-        onClick: addCard,
-        disabled: !front.trim() || !back.trim()
-      }, "Add card"), cards.length > 0 && /*#__PURE__*/React.createElement("button", {
-        className: "btn-restart",
-        onClick: () => openDeck(activeDeck)
-      }, "Study this deck →"), cards.length > 0 && /*#__PURE__*/React.createElement(React.Fragment, null, /*#__PURE__*/React.createElement("div", {
-        className: "field-label",
-        style: {
-          marginTop: 8
-        }
-      }, "Cards in this deck"), /*#__PURE__*/React.createElement("div", {
-        className: "deck-list"
-      }, cards.map(c => /*#__PURE__*/React.createElement("div", {
-        className: "deck-item",
-        key: c.id
-      }, /*#__PURE__*/React.createElement("span", {
-        className: "deck-item-text"
-      }, c.front), /*#__PURE__*/React.createElement("button", {
-        className: "btn-delete",
-        onClick: () => deleteCard(c.id),
-        "aria-label": "Delete card"
-      }, "×"))))))));
+
+      function flip() {
+        setFlipped(f => !f);
+      }
+
+      function rate(rating) {
+        if (!currentCard || !activeDeckId) return;
+        const cardIdBeingRated = currentCard.id;
+
+        setData(d => {
+          const decks = d.decks.map(dk => dk.id !== activeDeckId ? dk : {
+            ...dk,
+            lastStudiedDate: today,
+            cards: dk.cards.map(c => c.id === cardIdBeingRated ? applyRating(c, rating, today) : c)
+          });
+
+          let { streak, longestStreak, lastStudyDate, totalCardsReviewed, todayLog } = d.sessionStats;
+          if (!todayLog || todayLog.date !== today) todayLog = { date: today, entries: [] };
+          todayLog = { date: today, entries: [...todayLog.entries, rating] };
+
+          if (lastStudyDate !== today) {
+            if (lastStudyDate && addDays(lastStudyDate, 1) === today) {
+              streak = streak + 1;
+            } else {
+              streak = 1;
+            }
+            lastStudyDate = today;
+            longestStreak = Math.max(longestStreak, streak);
+          }
+
+          totalCardsReviewed = totalCardsReviewed + 1;
+
+          return {
+            ...d,
+            decks,
+            sessionStats: { ...d.sessionStats, streak, longestStreak, lastStudyDate, totalCardsReviewed, todayLog }
+          };
+        });
+
+        setSessionEntries(entries => [...entries, rating]);
+        setFlipped(false);
+
+        const isLast = sessionIndex + 1 >= queue.length;
+        setTimeout(() => {
+          if (isLast) {
+            setData(d => ({
+              ...d,
+              sessionStats: { ...d.sessionStats, totalSessionsCompleted: d.sessionStats.totalSessionsCompleted + 1 }
+            }));
+            setView("results");
+          } else {
+            setSessionIndex(i => i + 1);
+          }
+        }, 120);
+      }
+
+      // ---- Derived stats ----
+      const todayEntries = data ? (data.sessionStats.todayLog && data.sessionStats.todayLog.date === today ? data.sessionStats.todayLog.entries : []) : [];
+      const todayAccuracy = todayEntries.length > 0 ? Math.round((todayEntries.filter(r => r >= 3).length / todayEntries.length) * 100) : null;
+      const allCards = data ? data.decks.flatMap(dk => dk.cards) : [];
+      const newCompletedToday = allCards.filter(c => c.repetitions === 1 && c.lastReviewedDate === today).length;
+      const reviewedToday = allCards.filter(c => c.lastReviewedDate === today).length;
+      const totalUniqueCards = allCards.length;
+      const avgEaseOverall = totalUniqueCards > 0 ? (allCards.reduce((s, c) => s + c.easeFactor, 0) / totalUniqueCards).toFixed(2) : "—";
+
+      const sessionCorrect = sessionEntries.filter(r => r >= 3).length;
+      const sessionAccuracy = sessionEntries.length > 0 ? Math.round((sessionCorrect / sessionEntries.length) * 100) : 0;
+
+      if (!loaded || !data) {
+        return e(React.Fragment, null,
+          e("style", null, styles),
+          e("div", { className: "app" }, e("div", { className: "loading-screen" }, "Loading your decks…"))
+        );
+      }
+
+      const decks = data.decks;
+      const deckDue = activeDeck ? dueCards(activeDeck, today).length : 0;
+
+      // ---------- Header ----------
+      const headerTitle = view === "home" ? "Flashcards"
+        : view === "stats" ? "Stats"
+        : view === "form" ? (editingCardId ? "Edit card" : "Add card")
+        : activeDeck ? activeDeck.name : "";
+
+      const header = e("div", { className: "header" },
+        e("div", { className: "header-left" },
+          view !== "home" && e("button", { className: "btn-back", onClick: () => {
+            if (view === "study" || view === "results") { setView("deck"); setFlipped(false); }
+            else if (view === "form") { setView(returnView); setEditingCardId(null); }
+            else if (view === "stats") { setView("home"); }
+            else { goHome(); }
+          }, "aria-label": "Back" }, "‹"),
+          e("span", { className: "header-title" }, headerTitle)
+        ),
+        e("div", { className: "header-right" },
+          view === "home" && e("button", { className: "icon-btn", onClick: () => setView("stats"), "aria-label": "Stats" }, "📊"),
+          view === "home" && e("span", { className: "header-count" }, `${decks.length} deck${decks.length !== 1 ? "s" : ""}`),
+          view === "study" && queue.length > 0 && e("span", { className: "header-count" }, `${sessionIndex + 1} of ${queue.length}`),
+          view === "deck" && activeDeck && e("span", { className: "header-count" }, `${activeDeck.cards.length} card${activeDeck.cards.length !== 1 ? "s" : ""}`)
+        )
+      );
+
+      const progressBar = view === "study" && queue.length > 0 && e("div", { className: "progress-bar-track" },
+        e("div", { className: "progress-bar-fill", style: { width: `${progress * 100}%` } })
+      );
+
+      // ---------- Home ----------
+      let body = null;
+      if (view === "home") {
+        const totalDueAll = decks.reduce((s, dk) => s + dueCards(dk, today).length, 0);
+        body = e("div", { className: "home-screen" },
+          saveError && e("div", { className: "storage-warning" }, "Storage is full or unavailable — your latest changes may not be saved."),
+          decks.length > 0 && e("div", { className: "home-stats-row" },
+            e("div", { className: "mini-stat" }, e("span", { className: "mini-stat-num" }, totalDueAll), e("span", { className: "mini-stat-label" }, "Due today")),
+            e("div", { className: "mini-stat" }, e("span", { className: "mini-stat-num" }, data.sessionStats.streak), e("span", { className: "mini-stat-label" }, "Day streak"))
+          ),
+          decks.length === 0 && e("div", { className: "empty-state" },
+            e("div", { className: "empty-emoji" }, "🗂️"),
+            e("div", { className: "empty-title" }, "Create your first deck"),
+            e("div", { className: "empty-sub" }, "Decks keep topics separate — like \"Spanish Verbs\" or \"Biology Ch. 3\".")
+          ),
+          decks.length > 0 && e("div", { className: "deck-list" }, decks.map(deck => {
+            const due = dueCards(deck, today).length;
+            return e("div", { className: "deck-row", key: deck.id, onClick: () => openDeck(deck.id) },
+              e("div", { className: "deck-row-main" },
+                e("div", { className: "deck-row-name" }, deck.name),
+                e("div", { className: "deck-row-meta" },
+                  e("span", null, deck.cards.length, " card", deck.cards.length !== 1 ? "s" : ""),
+                  due > 0 && e("span", { className: "due-badge" }, due, " due"),
+                  e("span", null, "· ", formatDisplayDate(deck.lastStudiedDate))
+                )
+              )
+            );
+          })),
+          showNewDeck ? e("div", { className: "new-deck-form" },
+            e("div", { className: "field-label" }, "Deck name"),
+            e("input", {
+              className: "text-input", type: "text", autoFocus: true, placeholder: "e.g. Spanish Verbs",
+              value: newDeckName, onChange: ev => setNewDeckName(ev.target.value),
+              onKeyDown: ev => { if (ev.key === "Enter") createDeck(); }
+            }),
+            e("div", { className: "new-deck-actions" },
+              e("button", { className: "btn btn-secondary", style: { height: 48 }, onClick: () => { setShowNewDeck(false); setNewDeckName(""); } }, "Cancel"),
+              e("button", { className: "btn btn-primary", style: { height: 48 }, onClick: createDeck, disabled: !newDeckName.trim() }, "Create")
+            )
+          ) : e("button", { className: "btn-new-deck", onClick: () => setShowNewDeck(true) }, "+ New deck")
+        );
+      }
+
+      // ---------- Deck detail ----------
+      else if (view === "deck" && activeDeck) {
+        body = e("div", { className: "deck-detail" },
+          editingDeckName ? e("div", { className: "new-deck-form" },
+            e("input", {
+              className: "text-input", type: "text", autoFocus: true, value: deckNameDraft,
+              onChange: ev => setDeckNameDraft(ev.target.value),
+              onKeyDown: ev => { if (ev.key === "Enter") saveDeckName(); }
+            }),
+            e("div", { className: "inline-form-actions" },
+              e("button", { className: "btn btn-secondary", style: { height: 44 }, onClick: () => setEditingDeckName(false) }, "Cancel"),
+              e("button", { className: "btn btn-primary", style: { height: 44 }, onClick: saveDeckName, disabled: !deckNameDraft.trim() }, "Save")
+            )
+          ) : e("button", { className: "btn-ghost", style: { alignSelf: "flex-start", padding: "0 0 4px" }, onClick: () => { setDeckNameDraft(activeDeck.name); setEditingDeckName(true); } }, "✎ Rename deck"),
+
+          e("div", { className: "deck-stats-row" },
+            e("div", { className: "mini-stat" }, e("span", { className: "mini-stat-num" }, deckDue), e("span", { className: "mini-stat-label" }, "Due today")),
+            e("div", { className: "mini-stat" }, e("span", { className: "mini-stat-num" }, activeDeck.cards.length), e("span", { className: "mini-stat-label" }, "Total cards")),
+            e("div", { className: "mini-stat" }, e("span", { className: "mini-stat-num", style: { fontSize: 14 } }, formatDisplayDate(activeDeck.lastStudiedDate)), e("span", { className: "mini-stat-label" }, "Last studied"))
+          ),
+
+          e("div", { className: "deck-actions" },
+            e("button", {
+              className: "btn btn-primary", disabled: activeDeck.cards.length === 0,
+              onClick: () => startStudy(deckDue > 0 ? false : true)
+            }, deckDue > 0 ? `Study (${deckDue} due)` : activeDeck.cards.length > 0 ? "Review all" : "Study"),
+            e("button", { className: "btn btn-secondary", onClick: openAddCard }, "+ Add card")
+          ),
+          deckDue === 0 && activeDeck.cards.length > 0 && e("div", { className: "btn-study-note" }, "No cards due today — tap Study to review everything anyway."),
+
+          activeDeck.cards.length > 0 && e(React.Fragment, null,
+            e("div", { className: "card-list-section-label" }, "Cards"),
+            e("div", { className: "deck-list" }, activeDeck.cards.map(c => e("div", { className: "card-row", key: c.id, onClick: () => openEditCard(c) },
+              e("span", { className: "card-row-text" }, c.front),
+              e("span", { className: "card-row-due" }, c.nextReviewDate <= today ? "Due" : formatDisplayDate(c.nextReviewDate)),
+              e("button", {
+                className: `btn-delete${confirmDeleteCard === c.id ? " confirming" : ""}`,
+                onClick: ev => {
+                  ev.stopPropagation();
+                  if (confirmDeleteCard === c.id) { deleteCard(c.id); }
+                  else { setConfirmDeleteCard(c.id); setTimeout(() => setConfirmDeleteCard(curr => curr === c.id ? null : curr), 3000); }
+                },
+                "aria-label": "Delete card"
+              }, confirmDeleteCard === c.id ? "✓" : "×")
+            )))
+          ),
+
+          e("div", { className: "deck-danger-zone" },
+            e("button", {
+              className: `btn-text-danger${confirmDeleteDeck ? " confirming" : ""}`,
+              onClick: () => {
+                if (confirmDeleteDeck) deleteDeck(activeDeck.id);
+                else { setConfirmDeleteDeck(true); setTimeout(() => setConfirmDeleteDeck(c => c === true ? false : c), 3000); }
+              }
+            }, confirmDeleteDeck ? "Tap again to permanently delete deck" : "Delete deck")
+          )
+        );
+      }
+
+      // ---------- Study ----------
+      else if (view === "study" && activeDeck && currentCard) {
+        body = e(React.Fragment, null,
+          e("div", { className: "card-scene", onClick: flip, role: "button", "aria-label": "Flip card" },
+            e("div", { className: `card-3d${flipped ? " flipped" : ""}` },
+              e("div", { className: "card-face card-front" },
+                e("span", { className: "card-label" }, "Question"),
+                e("span", { className: "card-text" }, currentCard.front),
+                e("span", { className: "card-tap-hint" }, "Tap to reveal answer")
+              ),
+              e("div", { className: "card-face card-back" },
+                e("span", { className: "card-label" }, "Answer"),
+                e("span", { className: "card-text" }, currentCard.back)
+              )
+            )
+          ),
+          flipped ? e("div", { className: "rating-grid" },
+            e("button", { className: "rating-btn rating-again", onClick: () => rate(1) }, e("span", null, "Again"), e("span", { className: "rating-sub" }, "<1d")),
+            e("button", { className: "rating-btn rating-hard", onClick: () => rate(2) }, e("span", null, "Hard"), e("span", { className: "rating-sub" }, `${Math.max(1, Math.round(currentCard.interval * 1.2))}d`)),
+            e("button", { className: "rating-btn rating-good", onClick: () => rate(3) }, e("span", null, "Good"), e("span", { className: "rating-sub" }, `${currentCard.repetitions === 0 ? 1 : currentCard.repetitions === 1 ? 3 : Math.max(1, Math.round(currentCard.interval * currentCard.easeFactor))}d`)),
+            e("button", { className: "rating-btn rating-easy", onClick: () => rate(4) }, e("span", null, "Easy"), e("span", { className: "rating-sub" }, `${currentCard.repetitions === 0 ? 4 : currentCard.repetitions === 1 ? 15 : Math.max(1, Math.round(currentCard.interval * currentCard.easeFactor * 1.3))}d`)),
+            e("button", { className: "rating-btn rating-veasy", onClick: () => rate(5) }, e("span", null, "Very Easy"), e("span", { className: "rating-sub" }, `${currentCard.repetitions === 0 ? 7 : currentCard.repetitions === 1 ? 21 : Math.max(1, Math.round(currentCard.interval * currentCard.easeFactor * 1.6))}d`))
+          ) : e("div", { className: "reveal-row" },
+            e("button", { className: "btn-reveal", onClick: flip }, "Tap to reveal answer")
+          ),
+          e("div", { className: "bottom-row" },
+            e("button", { className: "btn-ghost", onClick: () => { setView("deck"); setFlipped(false); } }, "End session")
+          )
+        );
+      }
+
+      // ---------- Results ----------
+      else if (view === "results" && activeDeck) {
+        body = e("div", { className: "results" },
+          e("div", { className: "results-emoji" }, sessionAccuracy >= 80 ? "🎉" : sessionAccuracy >= 50 ? "👍" : "💪"),
+          e("div", { className: "results-title" }, "Session complete"),
+          e("div", { className: "results-sub" }, "You reviewed ", sessionEntries.length, " card", sessionEntries.length !== 1 ? "s" : "", " in ", activeDeck.name, "."),
+          e("div", { className: "results-stats" },
+            e("div", { className: "stat-box" }, e("span", { className: "stat-num" }, sessionEntries.length), e("span", { className: "stat-label" }, "Studied")),
+            e("div", { className: "stat-box stat-accuracy" }, e("span", { className: "stat-num" }, `${sessionAccuracy}%`), e("span", { className: "stat-label" }, "Accuracy")),
+            e("div", { className: "stat-box stat-streak" }, e("span", { className: "stat-num" }, data.sessionStats.streak), e("span", { className: "stat-label" }, "Day streak"))
+          ),
+          e("div", { className: "results-actions" },
+            dueCards(activeDeck, today).length > 0 && e("button", { className: "btn btn-primary btn-full", onClick: () => startStudy(false) }, "Continue studying"),
+            e("button", { className: "btn btn-secondary btn-full", onClick: () => setView("deck") }, "Back to deck"),
+            e("button", { className: "btn-ghost", onClick: goHome }, "Home")
+          )
+        );
+      }
+
+      // ---------- Add / Edit card form ----------
+      else if (view === "form" && activeDeck) {
+        body = e("div", { className: "form-screen" },
+          e("div", { className: "field-group" },
+            e("div", { className: "field-label" }, "Question (front)"),
+            e("textarea", { rows: 3, placeholder: "e.g. What is the capital of France?", value: formFront, onChange: ev => setFormFront(ev.target.value) })
+          ),
+          e("div", { className: "field-group" },
+            e("div", { className: "field-label" }, "Answer (back)"),
+            e("textarea", { rows: 3, placeholder: "e.g. Paris", value: formBack, onChange: ev => setFormBack(ev.target.value) })
+          ),
+          e("button", { className: "btn btn-primary btn-full", onClick: () => saveCardForm(false), disabled: !formFront.trim() || !formBack.trim() }, editingCardId ? "Save changes" : "Add card"),
+          !editingCardId && e("button", { className: "btn btn-secondary btn-full", onClick: () => saveCardForm(true), disabled: !formFront.trim() || !formBack.trim() }, "Add & create another"),
+          e("button", { className: "btn-ghost", onClick: () => { setEditingCardId(null); setView(returnView); } }, "Cancel")
+        );
+      }
+
+      // ---------- Stats page ----------
+      else if (view === "stats") {
+        body = e("div", { className: "stats-page" },
+          e("div", { className: "stats-section-title" }, "Today"),
+          e("div", { className: "stats-grid" },
+            e("div", { className: "stats-card" }, e("span", { className: "stats-card-num" }, reviewedToday), e("span", { className: "stats-card-label" }, "Cards reviewed")),
+            e("div", { className: "stats-card" }, e("span", { className: "stats-card-num" }, newCompletedToday), e("span", { className: "stats-card-label" }, "New cards completed")),
+            e("div", { className: "stats-card" }, e("span", { className: "stats-card-num" }, todayAccuracy === null ? "—" : `${todayAccuracy}%`), e("span", { className: "stats-card-label" }, "Accuracy today")),
+            e("div", { className: "stats-card" }, e("span", { className: "stats-card-num" }, data.sessionStats.streak), e("span", { className: "stats-card-label" }, "Current streak"))
+          ),
+          e("div", { className: "stats-section-title" }, "All time"),
+          e("div", { className: "stats-grid" },
+            e("div", { className: "stats-card" }, e("span", { className: "stats-card-num" }, data.sessionStats.longestStreak), e("span", { className: "stats-card-label" }, "Longest streak")),
+            e("div", { className: "stats-card" }, e("span", { className: "stats-card-num" }, data.sessionStats.totalSessionsCompleted), e("span", { className: "stats-card-label" }, "Sessions completed")),
+            e("div", { className: "stats-card" }, e("span", { className: "stats-card-num" }, data.sessionStats.totalCardsReviewed), e("span", { className: "stats-card-label" }, "Total reviews")),
+            e("div", { className: "stats-card" }, e("span", { className: "stats-card-num" }, totalUniqueCards), e("span", { className: "stats-card-label" }, "Total cards"))
+          ),
+          decks.length > 0 && e(React.Fragment, null,
+            e("div", { className: "stats-section-title" }, "By deck"),
+            e("div", { className: "deck-list" }, decks.map(dk => {
+              const ease = dk.cards.length > 0 ? (dk.cards.reduce((s, c) => s + c.easeFactor, 0) / dk.cards.length).toFixed(2) : "—";
+              return e("div", { className: "deck-stat-row", key: dk.id },
+                e("span", { className: "deck-stat-name" }, dk.name),
+                e("span", { className: "deck-stat-ease" }, "avg ease ", ease)
+              );
+            }))
+          )
+        );
+      }
+
+      return e(React.Fragment, null,
+        e("style", null, styles),
+        e("div", { className: "app" }, header, progressBar, body)
+      );
     }
+
     ReactDOM.createRoot(document.getElementById('root')).render(React.createElement(FlashcardsApp));
   } catch (err) {
     var el = document.getElementById('boot-status');
