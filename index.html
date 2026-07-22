@@ -29,7 +29,6 @@
   try {
     const useState = React.useState;
     const useEffect = React.useEffect;
-    const useMemo = React.useMemo;
     const e = React.createElement;
 
     let idSeed = 0;
@@ -64,21 +63,11 @@
       const dt = new Date(y, m - 1, d);
       return dt.toLocaleDateString(undefined, { month: "short", day: "numeric", year: y === new Date().getFullYear() ? undefined : "numeric" });
     }
-
-    // ---------- Credit shop: spend earned time-credits, not money ----------
-    // 1 credit = 1 minute of active app use.
-    const SUPER_PACKAGES = [
-      { key: "s1h", label: "1 hour", seconds: 3600, cost: 60 },
-      { key: "s24h", label: "24 hours", seconds: 86400, cost: 600 },
-      { key: "s7d", label: "7 days", seconds: 604800, cost: 3000 }
-    ];
-
     function formatExpiry(ms) {
       if (!ms) return "";
       const d = new Date(ms);
       return d.toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
     }
-
     function formatDuration(totalSeconds) {
       const s = Math.max(0, Math.floor(totalSeconds || 0));
       const h = Math.floor(s / 3600);
@@ -88,12 +77,30 @@
       return `${s}s`;
     }
 
-    // ---------- Card factory ----------
-    function newCard(front, back, today) {
+    // ---------- Credit shop: spend earned time-credits, not money ----------
+    // 1 credit = 1 minute of active app use.
+    const PREMIUM_PACKAGES = [
+      { key: "p1h", label: "1 hour", seconds: 3600, cost: 60 },
+      { key: "p24h", label: "24 hours", seconds: 86400, cost: 600 },
+      { key: "p7d", label: "7 days", seconds: 604800, cost: 3000 }
+    ];
+    const PREMIUM_FEATURES = [
+      { icon: "🚫", text: "No ads, anywhere in the app" },
+      { icon: "🏷️", text: "Organize cards into topics — filter and study by topic" },
+      { icon: "🎨", text: "Custom accent color for each deck" },
+      { icon: "📋", text: "Bulk-import many cards at once by pasting a list" },
+      { icon: "🔀", text: "Shuffle study order instead of the fixed sequence" },
+      { icon: "📤", text: "Export any deck to a plain-text file" }
+    ];
+    const DECK_COLORS = ["#7C6FFF", "#F97316", "#22C55E", "#3B82F6", "#EF4444", "#EAB308", "#EC4899", "#14B8A6"];
+
+    // ---------- Card / deck factories ----------
+    function newCard(front, back, today, topic) {
       return {
         id: makeId("card"),
         front,
         back,
+        topic: topic || "",
         interval: 1,
         easeFactor: 2.5,
         repetitions: 0,
@@ -139,18 +146,20 @@
 
       const nextReviewDate = rating === 1 ? today : addDays(today, Math.max(1, Math.round(interval)));
 
-      return {
-        ...card,
-        interval,
-        easeFactor,
-        repetitions,
-        nextReviewDate,
-        lastReviewedDate: today
-      };
+      return { ...card, interval, easeFactor, repetitions, nextReviewDate, lastReviewedDate: today };
     }
 
     function dueCards(deck, today) {
       return deck.cards.filter(c => c.nextReviewDate <= today);
+    }
+
+    function shuffleArray(arr) {
+      const a = arr.slice();
+      for (let i = a.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [a[i], a[j]] = [a[j], a[i]];
+      }
+      return a;
     }
 
     // ---------- Persistence ----------
@@ -168,7 +177,7 @@
           totalCardsReviewed: 0,
           totalActiveSeconds: 0,
           creditSeconds: 0,
-          superPremiumExpiresAt: 0,
+          premiumExpiresAt: 0,
           todayLog: { date: today, entries: [] }
         }
       };
@@ -185,12 +194,14 @@
           decks: decks.map(dk => ({
             id: dk.id || makeId("deck"),
             name: typeof dk.name === "string" ? dk.name : "Untitled deck",
+            color: typeof dk.color === "string" ? dk.color : null,
             createdAt: dk.createdAt || new Date().toISOString(),
             lastStudiedDate: dk.lastStudiedDate || null,
             cards: Array.isArray(dk.cards) ? dk.cards.map(c => ({
               id: c.id || makeId("card"),
               front: typeof c.front === "string" ? c.front : "",
               back: typeof c.back === "string" ? c.back : "",
+              topic: typeof c.topic === "string" ? c.topic : "",
               interval: typeof c.interval === "number" ? c.interval : 1,
               easeFactor: typeof c.easeFactor === "number" ? c.easeFactor : 2.5,
               repetitions: typeof c.repetitions === "number" ? c.repetitions : 0,
@@ -207,7 +218,7 @@
             totalCardsReviewed: typeof stats.totalCardsReviewed === "number" ? stats.totalCardsReviewed : 0,
             totalActiveSeconds: typeof stats.totalActiveSeconds === "number" ? stats.totalActiveSeconds : 0,
             creditSeconds: typeof stats.creditSeconds === "number" ? stats.creditSeconds : 0,
-            superPremiumExpiresAt: typeof stats.superPremiumExpiresAt === "number" ? stats.superPremiumExpiresAt : 0,
+            premiumExpiresAt: typeof stats.premiumExpiresAt === "number" ? stats.premiumExpiresAt : 0,
             todayLog
           }
         };
@@ -224,6 +235,15 @@
         console.error("Could not save flashcard data", err);
         return false;
       }
+    }
+
+    function downloadTextFile(filename, text) {
+      const a = document.createElement("a");
+      a.href = "data:text/plain;charset=utf-8," + encodeURIComponent(text);
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     }
 
     const styles = `
@@ -412,6 +432,7 @@
       .deck-row {
         background: #1C1C2E;
         border: 1px solid #2A2A40;
+        border-left: 4px solid #2A2A40;
         border-radius: 14px;
         padding: 16px;
         display: flex;
@@ -474,6 +495,7 @@
       }
       .text-input:focus { border-color: #7C6FFF; }
       .text-input::placeholder { color: #3A3A55; }
+      .text-input:disabled { opacity: 0.4; }
 
       .new-deck-actions, .inline-form-actions {
         display: flex;
@@ -495,6 +517,32 @@
       }
       .btn-new-deck:active { border-color: #7C6FFF; color: #BF7FFF; }
 
+      /* Color swatch picker (premium) */
+      .color-swatch-row {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+      }
+      .color-swatch {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        border: 2px solid transparent;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .color-swatch.selected {
+        border-color: #F0F0F8;
+      }
+      .locked-note {
+        font-size: 12px;
+        color: #6B6B8A;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        cursor: pointer;
+      }
+
       /* Deck detail */
       .deck-detail {
         flex: 1;
@@ -514,12 +562,73 @@
         gap: 12px;
       }
 
+      .deck-secondary-actions {
+        display: flex;
+        gap: 10px;
+      }
+
       .btn-study-note {
         font-size: 12px;
         color: #6B6B8A;
         text-align: center;
         margin-top: -6px;
       }
+
+      .topic-chip-row {
+        display: flex;
+        gap: 8px;
+        overflow-x: auto;
+        padding-bottom: 2px;
+      }
+      .topic-chip {
+        flex-shrink: 0;
+        background: #1C1C2E;
+        border: 1px solid #2A2A40;
+        color: #B0B0CC;
+        border-radius: 99px;
+        padding: 6px 14px;
+        font-size: 12px;
+        font-weight: 600;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+      }
+      .topic-chip.active {
+        background: rgba(124,111,255,0.2);
+        border-color: #7C6FFF;
+        color: #C9C2FF;
+      }
+
+      .shuffle-toggle-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 13px;
+        color: #B0B0CC;
+        font-weight: 600;
+      }
+      .switch {
+        width: 40px;
+        height: 24px;
+        border-radius: 99px;
+        background: #2A2A40;
+        border: none;
+        position: relative;
+        cursor: pointer;
+        -webkit-tap-highlight-color: transparent;
+        flex-shrink: 0;
+      }
+      .switch.on { background: #7C6FFF; }
+      .switch-knob {
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background: #fff;
+        transition: transform 0.15s ease;
+      }
+      .switch.on .switch-knob { transform: translateX(16px); }
 
       .card-list-section-label {
         font-size: 12px;
@@ -543,13 +652,20 @@
         -webkit-tap-highlight-color: transparent;
       }
 
+      .card-row-main { min-width: 0; flex: 1; }
+
       .card-row-text {
         font-size: 14px;
         color: #E0E0F0;
-        flex: 1;
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
+      }
+
+      .card-row-topic {
+        font-size: 11px;
+        color: #9B93FF;
+        margin-top: 2px;
       }
 
       .card-row-due {
@@ -983,7 +1099,7 @@
         .ad-banner { min-height: 100px; }
       }
 
-      /* Premium / Super Premium status banner */
+      /* Premium status banner */
       .status-banner {
         border-radius: 14px;
         padding: 14px 16px;
@@ -992,16 +1108,9 @@
         gap: 4px;
         font-size: 14px;
         font-weight: 700;
-      }
-      .status-premium {
         background: rgba(124,111,255,0.16);
         border: 1px solid #7C6FFF;
         color: #C9C2FF;
-      }
-      .status-super {
-        background: rgba(34,197,94,0.14);
-        border: 1px solid #22C55E;
-        color: #9CE8B8;
       }
       .status-banner-sub {
         font-size: 12px;
@@ -1037,6 +1146,23 @@
         font-size: 12px;
         color: #6B6B8A;
       }
+      .feature-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+      .feature-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        background: #1C1C2E;
+        border: 1px solid #2A2A40;
+        border-radius: 10px;
+        padding: 10px 12px;
+        font-size: 13px;
+        color: #D6D6EA;
+      }
+      .feature-row-icon { font-size: 16px; flex-shrink: 0; }
       .shop-pkg-row {
         background: #1C1C2E;
         border: 1px solid #2A2A40;
@@ -1108,21 +1234,26 @@
       const [loaded, setLoaded] = useState(false);
       const [saveError, setSaveError] = useState(false);
 
-      const [view, setView] = useState("home"); // home | deck | study | results | form | stats
+      const [view, setView] = useState("home"); // home | deck | study | results | form | stats | shop
       const [activeDeckId, setActiveDeckId] = useState(null);
       const [returnView, setReturnView] = useState("deck");
 
       const [showNewDeck, setShowNewDeck] = useState(false);
-      const [showLimitModal, setShowLimitModal] = useState(false);
       const [newDeckName, setNewDeckName] = useState("");
       const [editingDeckName, setEditingDeckName] = useState(false);
       const [deckNameDraft, setDeckNameDraft] = useState("");
+      const [deckColorDraft, setDeckColorDraft] = useState(null);
       const [confirmDeleteDeck, setConfirmDeleteDeck] = useState(false);
       const [confirmDeleteCard, setConfirmDeleteCard] = useState(null);
+      const [selectedTopic, setSelectedTopic] = useState("all");
+      const [shuffleEnabled, setShuffleEnabled] = useState(false);
 
       const [formFront, setFormFront] = useState("");
       const [formBack, setFormBack] = useState("");
+      const [formTopic, setFormTopic] = useState("");
       const [editingCardId, setEditingCardId] = useState(null);
+      const [bulkMode, setBulkMode] = useState(false);
+      const [bulkText, setBulkText] = useState("");
 
       const [queue, setQueue] = useState([]);
       const [sessionIndex, setSessionIndex] = useState(0);
@@ -1144,7 +1275,7 @@
       }, [data, loaded]);
 
       // Time-as-currency: accrue active (visible, foregrounded) app time.
-      // This balance is what unlocks extra deck slots — no payment involved.
+      // 1 credit = 1 minute — this balance is what buys Premium, no payment involved.
       const pendingSecondsRef = React.useRef(0);
       useEffect(() => {
         if (!loaded) return;
@@ -1180,36 +1311,26 @@
 
       const today = todayStr();
       const totalActiveSeconds = data ? (data.sessionStats.totalActiveSeconds || 0) : 0;
-      const extraDeckSlots = Math.floor(totalActiveSeconds / UNLOCK_INTERVAL_SECONDS);
-      const deckLimit = FREE_DECK_LIMIT + extraDeckSlots;
-      const secondsIntoSlot = totalActiveSeconds % UNLOCK_INTERVAL_SECONDS;
-      const secondsToNextSlot = UNLOCK_INTERVAL_SECONDS - secondsIntoSlot;
-      const nextSlotProgressPct = (secondsIntoSlot / UNLOCK_INTERVAL_SECONDS) * 100;
-
-      const nowMs = Date.now();
-      const premiumExpiresAt = data ? (data.sessionStats.premiumExpiresAt || 0) : 0;
-      const superPremiumExpiresAt = data ? (data.sessionStats.superPremiumExpiresAt || 0) : 0;
-      const premiumActive = premiumExpiresAt > nowMs;
-      const superPremiumActive = superPremiumExpiresAt > nowMs;
-      const unlimitedDecks = premiumActive || superPremiumActive;
-      const adsRemoved = superPremiumActive;
       const creditSeconds = data ? (data.sessionStats.creditSeconds || 0) : 0;
       const credits = Math.floor(creditSeconds / 60);
+      const nowMs = Date.now();
+      const premiumExpiresAt = data ? (data.sessionStats.premiumExpiresAt || 0) : 0;
+      const premiumActive = premiumExpiresAt > nowMs;
+      const adsRemoved = premiumActive;
 
-      function purchase(tier, seconds, cost) {
+      function purchasePremium(seconds, cost) {
         setData(d => {
           const remainingCredits = Math.floor((d.sessionStats.creditSeconds || 0) / 60);
           if (remainingCredits < cost) return d;
           const now = Date.now();
-          const key = tier === "super" ? "superPremiumExpiresAt" : "premiumExpiresAt";
-          const current = d.sessionStats[key] || 0;
+          const current = d.sessionStats.premiumExpiresAt || 0;
           const base = current > now ? current : now;
           return {
             ...d,
             sessionStats: {
               ...d.sessionStats,
               creditSeconds: (d.sessionStats.creditSeconds || 0) - cost * 60,
-              [key]: base + seconds * 1000
+              premiumExpiresAt: base + seconds * 1000
             }
           };
         });
@@ -1230,7 +1351,6 @@
         setConfirmDeleteDeck(false);
         setConfirmDeleteCard(null);
         setEditingDeckName(false);
-        setShowLimitModal(false);
       }
 
       function openDeck(deckId) {
@@ -1238,6 +1358,8 @@
         setConfirmDeleteDeck(false);
         setConfirmDeleteCard(null);
         setEditingDeckName(false);
+        setSelectedTopic("all");
+        setShuffleEnabled(false);
         setView("deck");
       }
 
@@ -1245,7 +1367,7 @@
       function createDeck() {
         const name = newDeckName.trim();
         if (!name) return;
-        const deck = { id: makeId("deck"), name, createdAt: new Date().toISOString(), lastStudiedDate: null, cards: [] };
+        const deck = { id: makeId("deck"), name, color: null, createdAt: new Date().toISOString(), lastStudiedDate: null, cards: [] };
         updateDecks(decks => [...decks, deck]);
         setNewDeckName("");
         setShowNewDeck(false);
@@ -1255,7 +1377,7 @@
       function saveDeckName() {
         const name = deckNameDraft.trim();
         if (!name) { setEditingDeckName(false); return; }
-        updateDecks(decks => decks.map(dk => dk.id === activeDeckId ? { ...dk, name } : dk));
+        updateDecks(decks => decks.map(dk => dk.id === activeDeckId ? { ...dk, name, color: premiumActive ? deckColorDraft : dk.color } : dk));
         setEditingDeckName(false);
       }
 
@@ -1269,6 +1391,9 @@
         setEditingCardId(null);
         setFormFront("");
         setFormBack("");
+        setFormTopic("");
+        setBulkMode(false);
+        setBulkText("");
         setReturnView("deck");
         setView("form");
       }
@@ -1277,6 +1402,8 @@
         setEditingCardId(card.id);
         setFormFront(card.front);
         setFormBack(card.back);
+        setFormTopic(card.topic || "");
+        setBulkMode(false);
         setReturnView("deck");
         setView("form");
       }
@@ -1287,23 +1414,42 @@
         if (editingCardId) {
           updateDecks(decks => decks.map(dk => dk.id !== activeDeckId ? dk : {
             ...dk,
-            cards: dk.cards.map(c => c.id === editingCardId ? { ...c, front: f, back: b } : c)
+            cards: dk.cards.map(c => c.id === editingCardId ? { ...c, front: f, back: b, topic: premiumActive ? formTopic.trim() : c.topic } : c)
           }));
         } else {
           updateDecks(decks => decks.map(dk => dk.id !== activeDeckId ? dk : {
             ...dk,
-            cards: [...dk.cards, newCard(f, b, today)]
+            cards: [...dk.cards, newCard(f, b, today, premiumActive ? formTopic.trim() : "")]
           }));
         }
         if (addAnother && !editingCardId) {
           setFormFront("");
           setFormBack("");
+          setFormTopic("");
         } else {
           setEditingCardId(null);
           setFormFront("");
           setFormBack("");
+          setFormTopic("");
           setView(returnView);
         }
+      }
+
+      function saveBulkImport() {
+        const lines = bulkText.split("\n").map(l => l.trim()).filter(Boolean);
+        const cards = [];
+        lines.forEach(line => {
+          const idx = line.indexOf("|");
+          if (idx === -1) return;
+          const f = line.slice(0, idx).trim();
+          const b = line.slice(idx + 1).trim();
+          if (f && b) cards.push(newCard(f, b, today, ""));
+        });
+        if (cards.length === 0) return;
+        updateDecks(decks => decks.map(dk => dk.id !== activeDeckId ? dk : { ...dk, cards: [...dk.cards, ...cards] }));
+        setBulkText("");
+        setBulkMode(false);
+        setView(returnView);
       }
 
       function deleteCard(cardId) {
@@ -1314,12 +1460,19 @@
         setConfirmDeleteCard(null);
       }
 
+      function exportDeck(deck) {
+        const lines = deck.cards.map(c => `${c.front} | ${c.back}`);
+        downloadTextFile(`${deck.name.replace(/[^a-z0-9\-_ ]/gi, "").trim() || "deck"}.txt`, lines.join("\n"));
+      }
+
       // ---- Study session ----
       function startStudy(reviewAll) {
         if (!activeDeck) return;
-        const pool = reviewAll ? activeDeck.cards : dueCards(activeDeck, today);
-        if (pool.length === 0) return;
-        setQueue(pool.map(c => c.id));
+        const pool = activeDeck.cards.filter(c => selectedTopic === "all" || c.topic === selectedTopic);
+        const due = reviewAll ? pool : dueCards({ cards: pool }, today);
+        if (due.length === 0) return;
+        const ordered = (premiumActive && shuffleEnabled) ? shuffleArray(due) : due;
+        setQueue(ordered.map(c => c.id));
         setSessionIndex(0);
         setSessionEntries([]);
         setFlipped(false);
@@ -1388,7 +1541,6 @@
       const newCompletedToday = allCards.filter(c => c.repetitions === 1 && c.lastReviewedDate === today).length;
       const reviewedToday = allCards.filter(c => c.lastReviewedDate === today).length;
       const totalUniqueCards = allCards.length;
-      const avgEaseOverall = totalUniqueCards > 0 ? (allCards.reduce((s, c) => s + c.easeFactor, 0) / totalUniqueCards).toFixed(2) : "—";
 
       const sessionCorrect = sessionEntries.filter(r => r >= 3).length;
       const sessionAccuracy = sessionEntries.length > 0 ? Math.round((sessionCorrect / sessionEntries.length) * 100) : 0;
@@ -1402,19 +1554,21 @@
 
       const decks = data.decks;
       const deckDue = activeDeck ? dueCards(activeDeck, today).length : 0;
+      const deckTopics = activeDeck ? Array.from(new Set(activeDeck.cards.map(c => c.topic).filter(Boolean))) : [];
+      const filteredCards = activeDeck ? activeDeck.cards.filter(c => selectedTopic === "all" || c.topic === selectedTopic) : [];
 
       // ---------- Header ----------
       const headerTitle = view === "home" ? "Flashcards"
         : view === "stats" ? "Stats"
         : view === "shop" ? "Credits Shop"
-        : view === "form" ? (editingCardId ? "Edit card" : "Add card")
+        : view === "form" ? (editingCardId ? "Edit card" : bulkMode ? "Bulk import" : "Add card")
         : activeDeck ? activeDeck.name : "";
 
       const header = e("div", { className: "header" },
         e("div", { className: "header-left" },
           view !== "home" && e("button", { className: "btn-back", onClick: () => {
             if (view === "study" || view === "results") { setView("deck"); setFlipped(false); }
-            else if (view === "form") { setView(returnView); setEditingCardId(null); }
+            else if (view === "form") { setView(returnView); setEditingCardId(null); setBulkMode(false); }
             else if (view === "stats" || view === "shop") { setView("home"); }
             else { goHome(); }
           }, "aria-label": "Back" }, "‹"),
@@ -1451,7 +1605,7 @@
           ),
           decks.length > 0 && e("div", { className: "deck-list" }, decks.map(deck => {
             const due = dueCards(deck, today).length;
-            return e("div", { className: "deck-row", key: deck.id, onClick: () => openDeck(deck.id) },
+            return e("div", { className: "deck-row", key: deck.id, style: { borderLeftColor: deck.color || "#2A2A40" }, onClick: () => openDeck(deck.id) },
               e("div", { className: "deck-row-main" },
                 e("div", { className: "deck-row-name" }, deck.name),
                 e("div", { className: "deck-row-meta" },
@@ -1465,32 +1619,12 @@
 
           !adsRemoved && e(AdBanner, { slot: "1111111111" }),
 
-          superPremiumActive ? e("div", { className: "status-banner status-super" },
-            e("span", null, "✨ Super Premium active — unlimited decks, no ads"),
-            e("span", { className: "status-banner-sub" }, `Until ${formatExpiry(superPremiumExpiresAt)}`)
-          ) : premiumActive ? e("div", { className: "status-banner status-premium" },
-            e("span", null, "⭐ Premium active — unlimited decks"),
+          premiumActive && e("div", { className: "status-banner" },
+            e("span", null, "⭐ Premium active"),
             e("span", { className: "status-banner-sub" }, `Until ${formatExpiry(premiumExpiresAt)}`)
-          ) : e("div", { className: "slots-bar" },
-            e("div", { className: "slots-bar-row" },
-              e("span", null, "Deck slots ", e("span", { className: "slots-count" }, `${decks.length} / ${deckLimit}`)),
-              e("span", null, extraDeckSlots > 0 ? `+${extraDeckSlots} earned` : "")
-            ),
-            e("div", { className: "slots-progress-track" }, e("div", { className: "slots-progress-fill", style: { width: `${nextSlotProgressPct}%` } })),
-            e("div", { className: "slots-bar-hint" }, `Next free slot in ~${Math.max(1, Math.ceil(secondsToNextSlot / 60))} min of app use, or spend credits in the shop for instant unlimited decks.`)
           ),
 
-          showLimitModal ? e("div", { className: "limit-panel" },
-            e("div", { className: "limit-panel-icon" }, "🔒"),
-            e("div", { className: "limit-panel-title" }, "Deck limit reached"),
-            e("div", { className: "limit-panel-sub" }, `You've used all ${deckLimit} deck slots. New slots unlock automatically the more you use the app, or spend credits in the shop for unlimited decks right now.`),
-            e("div", { className: "slots-progress-track" }, e("div", { className: "slots-progress-fill", style: { width: `${nextSlotProgressPct}%` } })),
-            e("div", { className: "limit-panel-label" }, `~${Math.max(1, Math.ceil(secondsToNextSlot / 60))} min of active use until your next slot`),
-            e("div", { className: "inline-form-actions" },
-              e("button", { className: "btn btn-secondary", onClick: () => setShowLimitModal(false) }, "Got it"),
-              e("button", { className: "btn btn-primary", onClick: () => { setShowLimitModal(false); setView("shop"); } }, "Open shop")
-            )
-          ) : showNewDeck ? e("div", { className: "new-deck-form" },
+          showNewDeck ? e("div", { className: "new-deck-form" },
             e("div", { className: "field-label" }, "Deck name"),
             e("input", {
               className: "text-input", type: "text", autoFocus: true, placeholder: "e.g. Spanish Verbs",
@@ -1501,10 +1635,7 @@
               e("button", { className: "btn btn-secondary", style: { height: 48 }, onClick: () => { setShowNewDeck(false); setNewDeckName(""); } }, "Cancel"),
               e("button", { className: "btn btn-primary", style: { height: 48 }, onClick: createDeck, disabled: !newDeckName.trim() }, "Create")
             )
-          ) : e("button", {
-            className: "btn-new-deck",
-            onClick: () => { if (!unlimitedDecks && decks.length >= deckLimit) setShowLimitModal(true); else setShowNewDeck(true); }
-          }, (!unlimitedDecks && decks.length >= deckLimit) ? "🔒 Deck limit reached" : "+ New deck")
+          ) : e("button", { className: "btn-new-deck", onClick: () => setShowNewDeck(true) }, "+ New deck")
         );
       }
 
@@ -1517,11 +1648,15 @@
               onChange: ev => setDeckNameDraft(ev.target.value),
               onKeyDown: ev => { if (ev.key === "Enter") saveDeckName(); }
             }),
+            premiumActive ? e("div", { className: "color-swatch-row" }, DECK_COLORS.map(c => e("button", {
+              key: c, className: `color-swatch${deckColorDraft === c ? " selected" : ""}`,
+              style: { background: c }, onClick: () => setDeckColorDraft(c), "aria-label": `Pick color ${c}`
+            }))) : e("div", { className: "locked-note", onClick: () => setView("shop") }, "🔒 Custom deck colors are a Premium perk"),
             e("div", { className: "inline-form-actions" },
               e("button", { className: "btn btn-secondary", style: { height: 44 }, onClick: () => setEditingDeckName(false) }, "Cancel"),
               e("button", { className: "btn btn-primary", style: { height: 44 }, onClick: saveDeckName, disabled: !deckNameDraft.trim() }, "Save")
             )
-          ) : e("button", { className: "btn-ghost", style: { alignSelf: "flex-start", padding: "0 0 4px" }, onClick: () => { setDeckNameDraft(activeDeck.name); setEditingDeckName(true); } }, "✎ Rename deck"),
+          ) : e("button", { className: "btn-ghost", style: { alignSelf: "flex-start", padding: "0 0 4px" }, onClick: () => { setDeckNameDraft(activeDeck.name); setDeckColorDraft(activeDeck.color); setEditingDeckName(true); } }, "✎ Rename deck"),
 
           e("div", { className: "deck-stats-row" },
             e("div", { className: "mini-stat" }, e("span", { className: "mini-stat-num" }, deckDue), e("span", { className: "mini-stat-label" }, "Due today")),
@@ -1529,21 +1664,42 @@
             e("div", { className: "mini-stat" }, e("span", { className: "mini-stat-num", style: { fontSize: 14 } }, formatDisplayDate(activeDeck.lastStudiedDate)), e("span", { className: "mini-stat-label" }, "Last studied"))
           ),
 
+          deckTopics.length > 0 && (premiumActive ? e("div", { className: "topic-chip-row" },
+            e("button", { className: `topic-chip${selectedTopic === "all" ? " active" : ""}`, onClick: () => setSelectedTopic("all") }, "All"),
+            deckTopics.map(t => e("button", { key: t, className: `topic-chip${selectedTopic === t ? " active" : ""}`, onClick: () => setSelectedTopic(t) }, t))
+          ) : e("div", { className: "locked-note", onClick: () => setView("shop") }, "🔒 Filter by topic with Premium")),
+
           e("div", { className: "deck-actions" },
             e("button", {
-              className: "btn btn-primary", disabled: activeDeck.cards.length === 0,
+              className: "btn btn-primary", disabled: filteredCards.length === 0,
               onClick: () => startStudy(deckDue > 0 ? false : true)
-            }, deckDue > 0 ? `Study (${deckDue} due)` : activeDeck.cards.length > 0 ? "Review all" : "Study"),
+            }, deckDue > 0 ? `Study (${deckDue} due)` : filteredCards.length > 0 ? "Review all" : "Study"),
             e("button", { className: "btn btn-secondary", onClick: openAddCard }, "+ Add card")
           ),
-          deckDue === 0 && activeDeck.cards.length > 0 && e("div", { className: "btn-study-note" }, "No cards due today — tap Study to review everything anyway."),
+          deckDue === 0 && filteredCards.length > 0 && e("div", { className: "btn-study-note" }, "No cards due today — tap Study to review everything anyway."),
+
+          e("div", { className: "shuffle-toggle-row" },
+            e("span", null, premiumActive ? "🔀 Shuffle study order" : "🔒 Shuffle study order (Premium)"),
+            e("button", {
+              className: `switch${shuffleEnabled && premiumActive ? " on" : ""}`,
+              onClick: () => premiumActive ? setShuffleEnabled(v => !v) : setView("shop"),
+              "aria-label": "Toggle shuffle"
+            }, e("span", { className: "switch-knob" }))
+          ),
+
+          e("div", { className: "deck-secondary-actions" },
+            e("button", { className: "btn btn-secondary", onClick: () => premiumActive ? exportDeck(activeDeck) : setView("shop") }, premiumActive ? "⬇️ Export deck" : "🔒 Export (Premium)")
+          ),
 
           !adsRemoved && e(AdBanner, { slot: "2222222222" }),
 
-          activeDeck.cards.length > 0 && e(React.Fragment, null,
+          filteredCards.length > 0 && e(React.Fragment, null,
             e("div", { className: "card-list-section-label" }, "Cards"),
-            e("div", { className: "deck-list" }, activeDeck.cards.map(c => e("div", { className: "card-row", key: c.id, onClick: () => openEditCard(c) },
-              e("span", { className: "card-row-text" }, c.front),
+            e("div", { className: "deck-list" }, filteredCards.map(c => e("div", { className: "card-row", key: c.id, onClick: () => openEditCard(c) },
+              e("div", { className: "card-row-main" },
+                e("span", { className: "card-row-text" }, c.front),
+                c.topic && e("div", { className: "card-row-topic" }, c.topic)
+              ),
               e("span", { className: "card-row-due" }, c.nextReviewDate <= today ? "Due" : formatDisplayDate(c.nextReviewDate)),
               e("button", {
                 className: `btn-delete${confirmDeleteCard === c.id ? " confirming" : ""}`,
@@ -1621,19 +1777,40 @@
 
       // ---------- Add / Edit card form ----------
       else if (view === "form" && activeDeck) {
-        body = e("div", { className: "form-screen" },
-          e("div", { className: "field-group" },
-            e("div", { className: "field-label" }, "Question (front)"),
-            e("textarea", { rows: 3, placeholder: "e.g. What is the capital of France?", value: formFront, onChange: ev => setFormFront(ev.target.value) })
-          ),
-          e("div", { className: "field-group" },
-            e("div", { className: "field-label" }, "Answer (back)"),
-            e("textarea", { rows: 3, placeholder: "e.g. Paris", value: formBack, onChange: ev => setFormBack(ev.target.value) })
-          ),
-          e("button", { className: "btn btn-primary btn-full", onClick: () => saveCardForm(false), disabled: !formFront.trim() || !formBack.trim() }, editingCardId ? "Save changes" : "Add card"),
-          !editingCardId && e("button", { className: "btn btn-secondary btn-full", onClick: () => saveCardForm(true), disabled: !formFront.trim() || !formBack.trim() }, "Add & create another"),
-          e("button", { className: "btn-ghost", onClick: () => { setEditingCardId(null); setView(returnView); } }, "Cancel")
-        );
+        if (bulkMode) {
+          const previewCount = bulkText.split("\n").map(l => l.trim()).filter(l => l.includes("|") && l.split("|")[0].trim() && l.split("|")[1] && l.split("|")[1].trim()).length;
+          body = e("div", { className: "form-screen" },
+            e("div", { className: "field-group" },
+              e("div", { className: "field-label" }, "Paste cards — one per line, as Front | Back"),
+              e("textarea", { rows: 10, placeholder: "Hola | Hello\nAdiós | Goodbye", value: bulkText, onChange: ev => setBulkText(ev.target.value) })
+            ),
+            e("div", { className: "btn-study-note" }, `${previewCount} card${previewCount !== 1 ? "s" : ""} will be added`),
+            e("button", { className: "btn btn-primary btn-full", onClick: saveBulkImport, disabled: previewCount === 0 }, "Import cards"),
+            e("button", { className: "btn-ghost", onClick: () => setBulkMode(false) }, "Back to single card")
+          );
+        } else {
+          body = e("div", { className: "form-screen" },
+            e("div", { className: "field-group" },
+              e("div", { className: "field-label" }, "Question (front)"),
+              e("textarea", { rows: 3, placeholder: "e.g. What is the capital of France?", value: formFront, onChange: ev => setFormFront(ev.target.value) })
+            ),
+            e("div", { className: "field-group" },
+              e("div", { className: "field-label" }, "Answer (back)"),
+              e("textarea", { rows: 3, placeholder: "e.g. Paris", value: formBack, onChange: ev => setFormBack(ev.target.value) })
+            ),
+            premiumActive ? e("div", { className: "field-group" },
+              e("div", { className: "field-label" }, "Topic (optional)"),
+              e("input", { className: "text-input", type: "text", placeholder: "e.g. Verbs", value: formTopic, onChange: ev => setFormTopic(ev.target.value) })
+            ) : e("div", { className: "locked-note", onClick: () => setView("shop") }, "🔒 Add topics to cards with Premium"),
+            e("button", { className: "btn btn-primary btn-full", onClick: () => saveCardForm(false), disabled: !formFront.trim() || !formBack.trim() }, editingCardId ? "Save changes" : "Add card"),
+            !editingCardId && e("button", { className: "btn btn-secondary btn-full", onClick: () => saveCardForm(true), disabled: !formFront.trim() || !formBack.trim() }, "Add & create another"),
+            !editingCardId && e("button", {
+              className: "btn-ghost",
+              onClick: () => premiumActive ? setBulkMode(true) : setView("shop")
+            }, premiumActive ? "📋 Bulk import instead" : "🔒 Bulk import (Premium)"),
+            e("button", { className: "btn-ghost", onClick: () => { setEditingCardId(null); setView(returnView); } }, "Cancel")
+          );
+        }
       }
 
       // ---------- Stats page ----------
@@ -1652,8 +1829,7 @@
             e("div", { className: "stats-card" }, e("span", { className: "stats-card-num" }, data.sessionStats.totalSessionsCompleted), e("span", { className: "stats-card-label" }, "Sessions completed")),
             e("div", { className: "stats-card" }, e("span", { className: "stats-card-num" }, data.sessionStats.totalCardsReviewed), e("span", { className: "stats-card-label" }, "Total reviews")),
             e("div", { className: "stats-card" }, e("span", { className: "stats-card-num" }, totalUniqueCards), e("span", { className: "stats-card-label" }, "Total cards")),
-            e("div", { className: "stats-card" }, e("span", { className: "stats-card-num", style: { fontSize: 20 } }, formatDuration(totalActiveSeconds)), e("span", { className: "stats-card-label" }, "Time in app")),
-            e("div", { className: "stats-card" }, e("span", { className: "stats-card-num" }, `+${extraDeckSlots}`), e("span", { className: "stats-card-label" }, "Bonus deck slots earned"))
+            e("div", { className: "stats-card" }, e("span", { className: "stats-card-num", style: { fontSize: 20 } }, formatDuration(totalActiveSeconds)), e("span", { className: "stats-card-label" }, "Time in app"))
           ),
           decks.length > 0 && e(React.Fragment, null,
             e("div", { className: "stats-section-title" }, "By deck"),
@@ -1670,9 +1846,24 @@
 
       // ---------- Credits shop ----------
       else if (view === "shop") {
-        const packageRow = (pkg, tier) => {
-          const affordable = credits >= pkg.cost;
-          return e("div", { className: "shop-pkg-row", key: pkg.key },
+        body = e("div", { className: "shop-page" },
+          e("div", { className: "shop-balance" },
+            e("span", { className: "shop-balance-num" }, credits),
+            e("span", { className: "shop-balance-label" }, "credits available — earned 1 per minute of app use")
+          ),
+          premiumActive && e("div", { className: "status-banner" },
+            e("span", null, "⭐ Premium active"),
+            e("span", { className: "status-banner-sub" }, `Until ${formatExpiry(premiumExpiresAt)}`)
+          ),
+
+          e("div", { className: "stats-section-title" }, "Premium unlocks"),
+          e("div", { className: "feature-list" }, PREMIUM_FEATURES.map((f, i) => e("div", { className: "feature-row", key: i },
+            e("span", { className: "feature-row-icon" }, f.icon),
+            e("span", null, f.text)
+          ))),
+
+          e("div", { className: "stats-section-title" }, "Buy Premium time"),
+          e("div", { className: "deck-list" }, PREMIUM_PACKAGES.map(pkg => e("div", { className: "shop-pkg-row", key: pkg.key },
             e("div", { className: "shop-pkg-main" },
               e("span", { className: "shop-pkg-label" }, pkg.label),
               e("span", { className: "shop-pkg-cost" }, `${pkg.cost} credits`)
@@ -1680,28 +1871,12 @@
             e("button", {
               className: "btn btn-secondary",
               style: { flex: "none", height: 40, padding: "0 18px" },
-              disabled: !affordable,
-              onClick: () => purchase(tier, pkg.seconds, pkg.cost)
-            }, affordable ? "Buy" : "Need more")
-          );
-        };
-        body = e("div", { className: "shop-page" },
-          e("div", { className: "shop-balance" },
-            e("span", { className: "shop-balance-num" }, credits),
-            e("span", { className: "shop-balance-label" }, "credits available — earned 1 per minute of app use")
-          ),
-          (premiumActive || superPremiumActive) && e("div", { className: `status-banner ${superPremiumActive ? "status-super" : "status-premium"}` },
-            e("span", null, superPremiumActive ? "✨ Super Premium active" : "⭐ Premium active"),
-            e("span", { className: "status-banner-sub" }, `Until ${formatExpiry(superPremiumActive ? superPremiumExpiresAt : premiumExpiresAt)}`)
-          ),
+              disabled: credits < pkg.cost,
+              onClick: () => purchasePremium(pkg.seconds, pkg.cost)
+            }, credits < pkg.cost ? "Need more" : "Buy")
+          ))),
 
-          e("div", { className: "stats-section-title" }, "Premium — unlimited deck slots"),
-          e("div", { className: "deck-list" }, PREMIUM_PACKAGES.map(pkg => packageRow(pkg, "premium"))),
-
-          e("div", { className: "stats-section-title" }, "Super Premium — unlimited decks + no ads"),
-          e("div", { className: "deck-list" }, SUPER_PACKAGES.map(pkg => packageRow(pkg, "super"))),
-
-          e("div", { className: "shop-note" }, "Purchases stack on top of any time you already have. No money involved — credits come only from using the app.")
+          e("div", { className: "shop-note" }, "Decks are always free and unlimited. Premium is optional and paid only in credits earned by using the app — never money.")
         );
       }
 
